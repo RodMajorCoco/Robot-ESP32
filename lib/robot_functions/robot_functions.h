@@ -19,5 +19,6 @@ void updateOLED(String line1, String line2);
 bool isAuthenticated(AsyncWebServerRequest *request);
 void saveWifiCredentials(const char* ssid, const char* pass);
 void saveAuthCredentials(const char* user, const char* pass);
+void setAction(const char* action);
 
 #endif

@@ -22,8 +22,8 @@ unsigned long lastCommandTime = 0;
 String www_username;
 String www_password;
 
-int MAX_WIFI_RETRIES = 20;
-int MAX_PERIOD_WITHOUT_COMMAND = 5000;
+const int MAX_WIFI_RETRIES = 20;
+const int MAX_PERIOD_WITHOUT_COMMAND = 5000;
 
 
 void setup() {
@@ -77,45 +77,35 @@ void setup() {
     server.on("/forward", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request))
             return;
-        current_action = "AVANCER";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("AVANCER");
         request->send(200);
     });
 
     server.on("/backward", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request))
             return;
-        current_action = "RECULER";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("RECULER");
         request->send(200);
     });
 
     server.on("/left", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request))
             return;
-        current_action = "ROTATION G";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("ROTATION G");
         request->send(200);
     });
 
     server.on("/right", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request))
             return;
-        current_action = "ROTATION D";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("ROTATION D");
         request->send(200);
     });
 
     server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request))
             return;
-        current_action = "STOP";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("STOP");
         request->send(200);
     });
 
@@ -135,9 +125,7 @@ void loop() {
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
     if(current_action != "STOP" && (millis() - lastCommandTime > MAX_PERIOD_WITHOUT_COMMAND)) {
-        current_action = "STOP";
-        lastCommandTime = millis();
-        updateOLED("ROBOT S3 READY", current_action);
+        setAction("STOP");
     }
 
 
