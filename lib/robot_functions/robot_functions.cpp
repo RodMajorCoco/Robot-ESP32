@@ -40,6 +40,7 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
 
 // Fonction pour mettre à jour l'action courante
 void setAction(const char* action) {
+    if (current_action == action) return;
     current_action = action;
     lastCommandTime = millis();
     updateOLED("ROBOT S3 READY", current_action);
