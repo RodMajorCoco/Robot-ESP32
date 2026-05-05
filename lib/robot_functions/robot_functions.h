@@ -5,6 +5,7 @@
 #include <ESPAsyncWebServer.h>
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
+#include "config.h"
 
 // Variables globales partagées
 extern const char* current_action;
