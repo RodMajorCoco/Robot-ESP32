@@ -44,6 +44,7 @@ void setAction(const char* action) {
     current_action = action;
     lastCommandTime = millis();
     updateOLED("ROBOT S3 READY", current_action);
+    applyMotorLogic(current_action);
 }
 
 // Fonction pour appliquer la logique des moteurs en fonction de l'action courante
@@ -72,5 +73,6 @@ void applyMotorLogic(const char* action) {
         analogWrite(MOTEUR_A_IN1, 0);
         analogWrite(MOTEUR_A_IN2, 0);
         analogWrite(MOTEUR_B_IN1, 0);
-        analogWrite(MOTEUR_B_IN2, 0);           
+        analogWrite(MOTEUR_B_IN2, 0); 
+    }          
 }
