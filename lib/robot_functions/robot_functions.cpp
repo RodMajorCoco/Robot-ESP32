@@ -3,6 +3,7 @@
 
 // fonction pour mettre à jour l'affichage OLED
 void updateOLED(String line1, String line2) {
+    if (!isDisplayOn) return;
     display.clearDisplay();
     display.setCursor(0, 10);
     display.setTextSize(1);
@@ -74,5 +75,15 @@ void applyMotorLogic(const char* action) {
         analogWrite(MOTEUR_A_IN2, 0);
         analogWrite(MOTEUR_B_IN1, 0);
         analogWrite(MOTEUR_B_IN2, 0); 
-    }          
+    }    
+}  
+
+void toggleDisplay(bool state) {
+    isDisplayOn = state; // On met à jour l'état mémorisé
+    display.ssd1306_command(state ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
+    
+    // Si on rallume, on force une mise à jour pour ne pas avoir un écran noir
+    if (state) {
+        updateOLED("ROBOT S3 READY", current_action);
+    }
 }

@@ -14,6 +14,7 @@ extern String www_username;
 extern String www_password;
 extern Adafruit_SSD1306 display;
 extern Preferences preferences;
+extern bool isDisplayOn; 
 
 // Fonctions utilitaires
 void updateOLED(String line1, String line2);
@@ -22,5 +23,6 @@ void saveWifiCredentials(const char* ssid, const char* pass);
 void saveAuthCredentials(const char* user, const char* pass);
 void setAction(const char* action);
 void applyMotorLogic(const char* action);
+void toggleDisplay(bool state);
 
 #endif

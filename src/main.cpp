@@ -20,6 +20,7 @@ const char* current_action = "STOP";
 unsigned long lastCommandTime = 0;
 String www_username;
 String www_password;
+bool isDisplayOn = true;
 
 
 void setup() {
@@ -94,6 +95,18 @@ void setup() {
     server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
         setAction("STOP");
+        request->send(200);
+    });
+
+    server.on("/display/on", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isAuthenticated(request)) return;
+        toggleDisplay(true);
+        request->send(200);
+    });
+
+    server.on("/display/off", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isAuthenticated(request)) return;
+        toggleDisplay(false);
         request->send(200);
     });
 
