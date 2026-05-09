@@ -6,6 +6,8 @@
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
 #include "config.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 // config.h ou robot_functions.h
 enum class Action {
@@ -24,9 +26,10 @@ extern Adafruit_SSD1306 display;
 extern Preferences preferences;
 extern bool isDisplayOn;
 extern Action current_action;
+extern SemaphoreHandle_t actionMutex;
 
 // Fonctions utilitaires
-void updateOLED(String line1, String line2);
+void updateOLED(const String& line1, const String& line2);
 bool isAuthenticated(AsyncWebServerRequest *request);
 void saveWifiCredentials(const char* ssid, const char* pass);
 void saveAuthCredentials(const char* user, const char* pass);

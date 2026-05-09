@@ -1,8 +1,10 @@
 #include "robot_functions.h"
 
+SemaphoreHandle_t actionMutex;
+
 
 // fonction pour mettre à jour l'affichage OLED
-void updateOLED(String line1, String line2) {
+void updateOLED(const String& line1, const String& line2) {
     if (!isDisplayOn) return;
     display.clearDisplay();
     display.setCursor(0, 10);
@@ -16,7 +18,7 @@ void updateOLED(String line1, String line2) {
 
 // fonction pour sauvegarder les credentials WiFi dans les Preferences
 void saveWifiCredentials(const char* ssid, const char* pass) {
-    preferences.begin("wifi-gate", false); 
+    preferences.begin(PREFS_NAMESPACE, false); 
     preferences.putString("ssid", ssid);
     preferences.putString("password", pass);
     preferences.end();
@@ -24,7 +26,7 @@ void saveWifiCredentials(const char* ssid, const char* pass) {
 
 // fonction pour sauvegarder les credentials Web dans les Preferences
 void saveAuthCredentials(const char* user, const char* pass) {
-    preferences.begin("wifi-gate", false); 
+    preferences.begin(PREFS_NAMESPACE, false); 
     preferences.putString("web_user", user);
     preferences.putString("web_pass", pass);
     preferences.end();
@@ -41,9 +43,14 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
 
 // Fonction pour mettre à jour l'action courante
 void setAction(Action action) {
-    if (current_action == action) return;
-    current_action = action;
-    lastCommandTime = millis();
+    if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
+        if (current_action != action) {
+            current_action = action;
+            lastCommandTime = millis();
+        }
+        xSemaphoreGive(actionMutex);
+    }
+            
     updateOLED("ROBOT S3 READY", actionToString(current_action));
     applyMotorLogic(current_action);
 }

@@ -5,6 +5,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
+#include <freertos/semphr.h>
 
 #include "robot_functions.h"
 #include "web_interface.h"
@@ -25,6 +26,15 @@ bool isDisplayOn = true;
 
 void setup() {
  
+    // Configuration des pins moteurs
+    pinMode(MOTEUR_A_IN1, OUTPUT);
+    pinMode(MOTEUR_A_IN2, OUTPUT);
+    pinMode(MOTEUR_B_IN1, OUTPUT);
+    pinMode(MOTEUR_B_IN2, OUTPUT);   
+
+    // Initialisation du mutex pour protéger l'accès à current_action
+    actionMutex = xSemaphoreCreateMutex();
+
     // Initialisation de l'interface série pour le debug
     Serial.begin(115200);
 
