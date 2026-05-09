@@ -40,37 +40,37 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
 }
 
 // Fonction pour mettre à jour l'action courante
-void setAction(const char* action) {
+void setAction(Action action) {
     if (current_action == action) return;
     current_action = action;
     lastCommandTime = millis();
-    updateOLED("ROBOT S3 READY", current_action);
+    updateOLED("ROBOT S3 READY", actionToString(current_action));
     applyMotorLogic(current_action);
 }
 
 // Fonction pour appliquer la logique des moteurs en fonction de l'action courante
-void applyMotorLogic(const char* action) {
-    if (strcmp(action, "AVANCER") == 0) {
+void applyMotorLogic(Action action) {
+    if (action == Action::AVANCER) {
         analogWrite(MOTEUR_A_IN1, VITESSE_CROISIERE);
         analogWrite(MOTEUR_A_IN2, 0);
         analogWrite(MOTEUR_B_IN1, VITESSE_CROISIERE);
         analogWrite(MOTEUR_B_IN2, 0);
-    } else if (strcmp(action, "RECULER") == 0) {
+    } else if (action == Action::RECULER) {
         analogWrite(MOTEUR_A_IN1, 0);
         analogWrite(MOTEUR_A_IN2, VITESSE_CROISIERE);
         analogWrite(MOTEUR_B_IN1, 0);
         analogWrite(MOTEUR_B_IN2, VITESSE_CROISIERE);
-    } else if (strcmp(action, "ROTATION G") == 0) {
+    } else if (action == Action::ROTATION_G) {
         analogWrite(MOTEUR_A_IN1, 0);
         analogWrite(MOTEUR_A_IN2, VITESSE_ROTATION);
         analogWrite(MOTEUR_B_IN1, VITESSE_ROTATION);
         analogWrite(MOTEUR_B_IN2, 0);
-    } else if (strcmp(action, "ROTATION D") == 0) {
+    } else if (action == Action::ROTATION_D) {
         analogWrite(MOTEUR_A_IN1, VITESSE_ROTATION);
         analogWrite(MOTEUR_A_IN2, 0);
         analogWrite(MOTEUR_B_IN1, 0);
         analogWrite(MOTEUR_B_IN2, VITESSE_ROTATION);
-    } else if (strcmp(action, "STOP") == 0) {
+    } else if (action == Action::STOP) {
         analogWrite(MOTEUR_A_IN1, 0);
         analogWrite(MOTEUR_A_IN2, 0);
         analogWrite(MOTEUR_B_IN1, 0);
@@ -78,12 +78,24 @@ void applyMotorLogic(const char* action) {
     }    
 }  
 
+// Fonction pour convertir une action en chaîne de caractères pour l'affichage
+const char* actionToString(Action a) {
+    switch(a) {
+        case Action::AVANCER:     return "AVANCER";
+        case Action::RECULER:     return "RECULER";
+        case Action::ROTATION_G:  return "ROTATION G";
+        case Action::ROTATION_D:  return "ROTATION D";
+        default:                  return "STOP";
+    }
+}
+
+// Fonction pour basculer l'état de l'affichage OLED
 void toggleDisplay(bool state) {
     isDisplayOn = state; // On met à jour l'état mémorisé
     display.ssd1306_command(state ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
     
     // Si on rallume, on force une mise à jour pour ne pas avoir un écran noir
     if (state) {
-        updateOLED("ROBOT S3 READY", current_action);
+        updateOLED("ROBOT S3 READY", actionToString(current_action));
     }
 }

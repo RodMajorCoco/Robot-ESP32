@@ -16,7 +16,7 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 AsyncWebServer server(80);
 Preferences preferences;
 
-const char* current_action = "STOP";
+Action current_action = Action::STOP;
 unsigned long lastCommandTime = 0;
 String www_username;
 String www_password;
@@ -70,31 +70,31 @@ void setup() {
 
     server.on("/forward", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
-        setAction("AVANCER");
+        setAction(Action::AVANCER);
         request->send(200);
     });
 
     server.on("/backward", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
-        setAction("RECULER");
+        setAction(Action::RECULER);
         request->send(200);
     });
 
     server.on("/left", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
-        setAction("ROTATION G");
+        setAction(Action::ROTATION_G);
         request->send(200);
     });
 
     server.on("/right", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
-        setAction("ROTATION D");
+        setAction(Action::ROTATION_D);
         request->send(200);
     });
 
     server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
         if(!isAuthenticated(request)) return;
-        setAction("STOP");
+        setAction(Action::STOP);
         request->send(200);
     });
 
@@ -125,8 +125,8 @@ void loop() {
     }
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
-    if(current_action != "STOP" && (millis() - lastCommandTime > MAX_PERIOD_WITHOUT_COMMAND)) {
-        setAction("STOP");
+    if(current_action != Action::STOP && (millis() - lastCommandTime > MAX_PERIOD_WITHOUT_COMMAND)) {
+        setAction(Action::STOP);
     }
 
    

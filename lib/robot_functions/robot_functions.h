@@ -7,22 +7,32 @@
 #include <Preferences.h>
 #include "config.h"
 
+// config.h ou robot_functions.h
+enum class Action {
+    STOP,
+    AVANCER,
+    RECULER,
+    ROTATION_G,
+    ROTATION_D
+};
+
 // Variables globales partagées
-extern const char* current_action;
 extern unsigned long lastCommandTime;
 extern String www_username;
 extern String www_password;
 extern Adafruit_SSD1306 display;
 extern Preferences preferences;
-extern bool isDisplayOn; 
+extern bool isDisplayOn;
+extern Action current_action;
 
 // Fonctions utilitaires
 void updateOLED(String line1, String line2);
 bool isAuthenticated(AsyncWebServerRequest *request);
 void saveWifiCredentials(const char* ssid, const char* pass);
 void saveAuthCredentials(const char* user, const char* pass);
-void setAction(const char* action);
-void applyMotorLogic(const char* action);
+void setAction(Action action);
+void applyMotorLogic(Action action);
 void toggleDisplay(bool state);
+const char* actionToString(Action a);
 
 #endif
