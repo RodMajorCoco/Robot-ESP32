@@ -21,7 +21,7 @@ Action current_action = Action::STOP;
 unsigned long lastCommandTime = 0;
 String www_username;
 String www_password;
-bool isDisplayOn = true;
+volatile bool isDisplayOn = true;
 
 
 void setup() {

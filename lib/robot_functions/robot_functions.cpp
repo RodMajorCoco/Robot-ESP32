@@ -43,7 +43,7 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
 
 // Fonction pour mettre à jour l'action courante
 void setAction(Action action) {
-    Action actionToApply;
+    Action actionToApply = Action::STOP;
 
     if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
         if (current_action != action) {
@@ -115,6 +115,11 @@ void toggleDisplay(bool state) {
     
     // Si on rallume, on force une mise à jour pour ne pas avoir un écran noir
     if (state) {
-        updateOLED("ROBOT S3 READY", actionToString(current_action));
+        Action snapshot = Action::STOP;
+        if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
+            snapshot = current_action;
+            xSemaphoreGive(actionMutex);
+        }
+        updateOLED("ROBOT S3 READY", actionToString(snapshot));
     }
 }

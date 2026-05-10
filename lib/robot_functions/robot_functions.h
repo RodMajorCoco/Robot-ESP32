@@ -24,7 +24,7 @@ extern String www_username;
 extern String www_password;
 extern Adafruit_SSD1306 display;
 extern Preferences preferences;
-extern bool isDisplayOn;
+extern volatile bool isDisplayOn;
 extern Action current_action;
 extern SemaphoreHandle_t actionMutex;
 
