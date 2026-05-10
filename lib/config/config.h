@@ -1,6 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 #define BRAKE_MODE true
+#define DEBUG_MODE true 
 
 #include <Arduino.h>
 
@@ -20,6 +21,7 @@ const char* const PREFS_NAMESPACE = "wifi-gate";
 #define MOTEUR_A_IN2 5
 #define MOTEUR_B_IN1 6  // Moteur Droit
 #define MOTEUR_B_IN2 7
+#define DRV8833_EEP 10 // Pin de contrôle du mode de freinage du DRV8833 (EEPROM)
 
 // --- PARAMÈTRES DE MOUVEMENT ---
 const int VITESSE_CROISIERE = 200; // Valeur entre 0 et 255

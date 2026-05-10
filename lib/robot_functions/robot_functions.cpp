@@ -59,10 +59,8 @@ void setAction(Action action) {
     Action actionToApply = Action::STOP;
 
     if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {// On protège l'accès à current_action
-        if (current_action != action) {
-            current_action = action;
-            lastCommandTime = millis();
-        }
+        current_action = action;          // toujours mettre à jour
+        lastCommandTime = millis();       // toujours rafraîchir le timer
         actionToApply = current_action; 
         xSemaphoreGive(actionMutex);
     }
@@ -73,6 +71,12 @@ void setAction(Action action) {
 
 // Applique la logique moteur en fonction de l'action demandée
 void applyMotorLogic(Action action) {
+    
+    #if DEBUG_MODE
+        Serial.print("[MOTOR] ");
+        Serial.println(actionToString(action));
+    #endif
+
     if (action == Action::AVANCER) {
         analogWrite(MOTEUR_A_IN1, VITESSE_CROISIERE);
         analogWrite(MOTEUR_A_IN2, 0);
@@ -96,10 +100,10 @@ void applyMotorLogic(Action action) {
     } else if (action == Action::STOP) {
         #if BRAKE_MODE
             // Freinage actif : les deux pins à HIGH pour chaque moteur
-            digitalWrite(MOTEUR_A_IN1, HIGH);
-            digitalWrite(MOTEUR_A_IN2, HIGH);
-            digitalWrite(MOTEUR_B_IN1, HIGH);
-            digitalWrite(MOTEUR_B_IN2, HIGH);
+            analogWrite(MOTEUR_A_IN1, 255);
+            analogWrite(MOTEUR_A_IN2, 255);
+            analogWrite(MOTEUR_B_IN1, 255);
+            analogWrite(MOTEUR_B_IN2, 255); 
         #else
             // Roues libres : les deux pins à LOW pour chaque moteur    
             analogWrite(MOTEUR_A_IN1, 0);
@@ -134,5 +138,24 @@ void toggleDisplay(bool state) {
             xSemaphoreGive(actionMutex);
         }
         updateOLED("ROBOT S3 READY", actionToString(snapshot));
+    }
+}
+
+// Active ou désactive le driver moteur
+void toggleDriver(bool state) {
+    isDriverOn = state;
+    digitalWrite(DRV8833_EEP, state ? HIGH : LOW);
+
+    if (!state) {
+        // Pas de mutex ici, on appelle directement applyMotorLogic + reset action
+        if (xSemaphoreTake(actionMutex, pdMS_TO_TICKS(10))) {
+            current_action = Action::STOP;
+            lastCommandTime = millis();
+            xSemaphoreGive(actionMutex);
+        }
+        applyMotorLogic(Action::STOP);
+        updateOLED("ROBOT S3 READY", "DRIVER OFF");
+    } else {
+        updateOLED("ROBOT S3 READY", "DRIVER ON");
     }
 }

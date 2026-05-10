@@ -42,6 +42,7 @@ extern String www_password;
 extern Adafruit_SSD1306 display;
 extern Preferences preferences;
 extern volatile bool isDisplayOn;
+extern volatile bool isDriverOn;
 extern Action current_action;
 extern SemaphoreHandle_t actionMutex;
 
@@ -122,6 +123,16 @@ void applyMotorLogic(Action action);
  * @param state État souhaité de l'écran OLED
  */
 void toggleDisplay(bool state);
+
+/**
+ * @brief Active ou désactive le driver moteur.
+ * 
+ * Met à jour l'état local du driver moteur et applique la logique moteur
+ * correspondante (arrêt ou reprise de l'action courante).
+ * 
+ * @param state État souhaité du driver moteur
+ */
+void toggleDriver(bool state);
 
 /**
  * @brief Convertit une action en texte lisible.

@@ -21,7 +21,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     
     .layout { 
         display: grid; width: 100%; height: 100%;
-        grid-template-areas: ". up scr" "left stop right" ". down ."; 
+        grid-template-areas: "drv up scr" "left stop right" ". down ."; 
         grid-template-columns: 1fr 1.2fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 15px; 
     }
     
@@ -51,6 +51,18 @@ const char index_html[] PROGMEM = R"rawliteral(
         border: 1px dashed #00ffcc; border-radius: 20px;
         text-align: center; line-height: 1.1; flex-direction: column;
     }
+
+    .btn-driver { 
+        grid-area: drv; background: #333; font-size: 14px; color: #00ff88;
+        border: 1px dashed #00ff88; border-radius: 20px;
+        text-align: center; line-height: 1.1; flex-direction: column;
+    }
+
+    .btn-driver.driver-off {
+        color: #ff4444;
+        border-color: #ff4444;
+    }
+
 </style></head>
 <body>
     <div class="camera-container">
@@ -60,6 +72,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         <div class="layout">
             <div class="btn btn-up" data-dir="forward">▲</div>
             <div class="btn btn-screen" id="scrBtn">SCREEN<br>ON</div>
+            <div class="btn btn-driver" id="drvBtn">DRIVER<br>ON</div>
             <div class="btn btn-left" data-dir="left">◄</div>
             <div class="btn btn-stop" data-dir="stop">STOP</div>
             <div class="btn btn-right" data-dir="right">►</div>
@@ -84,6 +97,20 @@ const char index_html[] PROGMEM = R"rawliteral(
         scrBtn.addEventListener('touchstart', toggleScreen);
         scrBtn.addEventListener('click', toggleScreen);
 
+        let driverState = true;
+        const drvBtn = document.getElementById('drvBtn');
+
+        function toggleDriver(e) {
+            if (e) e.preventDefault();
+            driverState = !driverState;
+            fetch(driverState ? '/driver/on' : '/driver/off');
+
+            drvBtn.classList.toggle('driver-off', !driverState);
+            drvBtn.innerHTML = driverState ? "DRIVER<br>ON" : "DRIVER<br>OFF";
+        }
+        drvBtn.addEventListener('touchstart', toggleDriver);
+        drvBtn.addEventListener('click', toggleDriver);
+
         // Gestion des mouvements (Unifiée Mobile/PC)
         function sendMove(dir) {
             if (controller) controller.abort();
@@ -92,7 +119,7 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
 
         document.querySelectorAll('.btn').forEach(button => {
-            if (button.id === 'scrBtn') return;
+            if (button.id === 'scrBtn' || button.id === 'drvBtn') return;
 
             const start = (e) => {
                 e.preventDefault();
