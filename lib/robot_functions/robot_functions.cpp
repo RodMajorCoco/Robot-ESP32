@@ -43,16 +43,19 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
 
 // Fonction pour mettre à jour l'action courante
 void setAction(Action action) {
+    Action actionToApply;
+
     if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
         if (current_action != action) {
             current_action = action;
             lastCommandTime = millis();
         }
+        actionToApply = current_action; 
         xSemaphoreGive(actionMutex);
     }
             
-    updateOLED("ROBOT S3 READY", actionToString(current_action));
-    applyMotorLogic(current_action);
+    updateOLED("ROBOT S3 READY", actionToString(actionToApply));
+    applyMotorLogic(actionToApply);
 }
 
 // Fonction pour appliquer la logique des moteurs en fonction de l'action courante

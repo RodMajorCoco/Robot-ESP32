@@ -135,7 +135,16 @@ void loop() {
     }
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
-    if(current_action != Action::STOP && (millis() - lastCommandTime > MAX_PERIOD_WITHOUT_COMMAND)) {
+    Action snapshotAction;
+    unsigned long snapshotActionTime;
+
+    if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
+        snapshotAction = current_action;
+        snapshotActionTime = lastCommandTime;
+        xSemaphoreGive(actionMutex);
+    }
+
+    if(snapshotAction != Action::STOP && (millis() - snapshotActionTime > MAX_PERIOD_WITHOUT_COMMAND)) {
         setAction(Action::STOP);
     }
 
