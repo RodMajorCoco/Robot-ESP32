@@ -3,7 +3,7 @@
  *  Projet   : Robot ESP32-S3
  *  Auteur   : 
  *  Date     : 2026-05-01
- *  Version  : 1.0
+ *  Version  : 1.1
  * ----------------------------------------------------------
  *  Description :
  *    Interface web embarquée (HTML/CSS/JS) stockée en
@@ -14,6 +14,7 @@
  * ----------------------------------------------------------
  *  Historique :
  *    1.0 - 2026-05-01 : Création
+ *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie et endpoint /battery
  ************************************************************/
 
 #ifndef WEB_INTERFACE_H
@@ -33,7 +34,33 @@ const char index_html[] PROGMEM = R"rawliteral(
     }
     
     .camera-container { height: 50vh; background: #000; display: flex; align-items: center; justify-content: center; border-bottom: 2px solid #444; }
-    .camera-placeholder { color: #00ffcc; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+    .camera-placeholder { color: #00ffcc; font-size1,: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+
+    .battery-overlay {
+        position: absolute; top: 10px; right: 10px;
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(0,0,0,0.55); border-radius: 8px;
+        padding: 4px 10px; backdrop-filter: blur(4px);
+        font-size: 13px; font-weight: bold; color: #fff;
+        pointer-events: none; /* ne pas bloquer le futur flux vidéo */
+        z-index: 10;
+    }
+    .battery-bar-bg {
+        width: 36px; height: 14px; border: 2px solid #fff;
+        border-radius: 3px; position: relative;
+    }
+    .battery-bar-bg::after { /* borne + */
+        content: ''; position: absolute;
+        right: -5px; top: 3px;
+        width: 3px; height: 6px;
+        background: #fff; border-radius: 0 2px 2px 0;
+    }
+    .battery-bar-fill {
+        height: 100%; border-radius: 1px;
+        transition: width 0.5s, background 0.5s;
+    }
+    .battery-text { min-width: 34px; text-align: right; }
+
 
     .controls { height: 50vh; padding: 10px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
     
@@ -83,8 +110,14 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 </style></head>
 <body>
-    <div class="camera-container">
+    <div class="camera-container" style="position:relative;">
         <div class="camera-placeholder">--- LIVE FEED ---</div>
+        <div class="battery-overlay">
+            <div class="battery-bar-bg">
+                <div class="battery-bar-fill" id="batFill"></div>
+            </div>
+            <span class="battery-text" id="batText">---%</span>
+        </div>
     </div>
     <div class="controls">
         <div class="layout">
@@ -135,6 +168,30 @@ const char index_html[] PROGMEM = R"rawliteral(
             controller = new AbortController();
             fetch('/' + dir, { signal: controller.signal });
         }
+
+
+        // Mise à jour de l'indicateur de batterie
+        function updateBatteryUI(pct) {
+            const fill = document.getElementById('batFill');
+            const text = document.getElementById('batText');
+            if (!fill || !text) return;
+            
+            fill.style.width = pct + '%';
+            fill.style.background = pct > 50 ? '#00ff88' 
+                                  : pct > 20 ? '#ffaa00' 
+                                  :            '#ff4444';
+            text.textContent = pct + '%';
+        }
+
+        // Polling toutes les 30s (synchronisé avec BATTERY_READ_INTERVAL)
+        async function fetchBattery() {
+            try {
+                const r = await fetch('/battery');
+                if (r.ok) updateBatteryUI(parseInt(await r.text()));
+            } catch(e) {}
+        }
+        fetchBattery(); // lecture immédiate au chargement
+        setInterval(fetchBattery, 30000);
 
         document.querySelectorAll('.btn').forEach(button => {
             if (button.id === 'scrBtn' || button.id === 'drvBtn') return;

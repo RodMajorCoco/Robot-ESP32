@@ -3,7 +3,7 @@
  *  Projet   : Robot ESP32-S3
  *  Auteur   : 
  *  Date     : 2026-05-01
- *  Version  : 1.0
+ *  Version  : 1.1
  *  Matériel : ESP32-S3 + DRV8833 + SSD1306
  * ----------------------------------------------------------
  *  Description :
@@ -13,6 +13,7 @@
  * ----------------------------------------------------------
  *  Historique :
  *    1.0 - 2026-05-01 : Création
+ *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie
  ************************************************************/
 
 #ifndef ROBOT_FUNCTIONS_H
@@ -53,6 +54,7 @@ extern volatile bool isDisplayOn;
 extern volatile bool isDriverOn;
 extern Action current_action;
 extern SemaphoreHandle_t actionMutex;
+extern volatile int32_t batteryPercent;
 
 /************************************************************
  *                  Fonctions utilitaires                   *
@@ -152,5 +154,12 @@ void toggleDriver(bool state);
  * @return const char* Chaîne représentant l'action
  */
 const char* actionToString(Action a);
+
+/**
+ * @brief Met à jour le pourcentage de batterie.
+ *
+ * Lit la tension de la batterie et calcule le pourcentage correspondant.
+ */
+void updateBattery();
 
 #endif

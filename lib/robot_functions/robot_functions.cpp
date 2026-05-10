@@ -3,7 +3,7 @@
  *  Projet   : Robot ESP32-S3
  *  Auteur   : 
  *  Date     : 2026-05-01
- *  Version  : 1.0
+ *  Version  : 1.1
  *  Matériel : ESP32-S3 + DRV8833 + SSD1306
  * ----------------------------------------------------------
  *  Description :
@@ -14,6 +14,7 @@
  * ----------------------------------------------------------
  *  Historique :
  *    1.0 - 2026-05-01 : Création
+ *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie
  ************************************************************/
 
 
@@ -26,13 +27,28 @@ SemaphoreHandle_t actionMutex; // Mutex pour protéger l'accès à current_actio
 void updateOLED(const String& line1, const String& line2) {
     if (!isDisplayOn) return;
     display.clearDisplay();
-    display.setCursor(0, 10);
+
+    // --- Moitié haute : barre de batterie ---
+    display.drawRect(0, 0, 110, 14, WHITE);       // contour
+    display.fillRect(110, 4, 5, 6, WHITE);        // borne +
+    int fillWidth = (int)(106.0f * batteryPercent / 100.0f);
+    display.fillRect(2, 2, fillWidth, 10, WHITE);  // remplissage
+    display.setTextSize(1);
+    display.setTextColor(batteryPercent > 20 ? BLACK : WHITE);
+    display.setCursor(38, 3);
+    display.printf("%d%%", batteryPercent);
+
+    // --- Moitié basse : action courante ---
+    display.setTextColor(WHITE);
+    display.setCursor(0, 20);
     display.setTextSize(1);
     display.println(line1);
-    display.setCursor(0, 30);
+    display.setCursor(0, 32);
     display.setTextSize(2);
     display.println(line2);
+
     display.display();
+    yield(); // Laisser le temps à l'ESP de gérer d'autres tâches
 }
 
 // Sauvegarde les credentials WiFi dans les Preferences
@@ -168,4 +184,33 @@ void toggleDriver(bool state) {
     } else {
         updateOLED("ROBOT S3 READY", "DRIVER ON");
     }
+}
+
+
+volatile int batteryPercent = 100;
+
+// Lit la tension batterie et met à jour le pourcentage
+void updateBattery() {
+    // Moyenne sur 16 lectures pour réduire le bruit ADC
+    int raw = 0;
+    for (int i = 0; i < 16; i++) {
+        raw += analogRead(BATTERY_ADC_PIN);
+    }
+    raw /= 16;
+
+    // Conversion en tension réelle
+    float vADC = (raw / BATTERY_ADC_RES) * BATTERY_ADC_REF;
+    float vBat = vADC * (BATTERY_R1 + BATTERY_R2) / BATTERY_R2;
+
+    // Calcul du pourcentage avec clamping
+    int pct = (int)(((vBat - BATTERY_VMIN) / (BATTERY_VMAX - BATTERY_VMIN)) * 100.0f);
+    if (pct > 100) pct = 100;
+    if (pct < 0)   pct = 0;
+
+    batteryPercent = pct;
+
+    #if DEBUG_MODE
+        Serial.printf("[BAT] raw=%d vADC=%.3f vBat=%.3f pct=%d%%\n",
+                      raw, vADC, vBat, pct);
+    #endif
 }

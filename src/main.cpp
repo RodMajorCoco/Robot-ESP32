@@ -3,7 +3,7 @@
  *  Projet   : Robot ESP32-S3
  *  Auteur   : 
  *  Date     : 2026-05-01
- *  Version  : 1.0
+ *  Version  : 1.1
  *  Matériel : ESP32-S3 N16R8  + DRV8833 + SSD1306
  * ----------------------------------------------------------
  *  Description :
@@ -15,6 +15,7 @@
  * ----------------------------------------------------------
  *  Historique :
  *    1.0 - 2026-05-01 : Création
+ *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie et endpoint /battery
  ************************************************************/
 
 #include <Arduino.h>
@@ -202,7 +203,17 @@ void setup() {
         request->send(200);
     });
 
+    server.on("/battery", HTTP_GET, [](AsyncWebServerRequest *request){
+        if(!isAuthenticated(request)) return;
+        request->send(200, "text/plain", String(batteryPercent));
+    });
+
     server.begin();
+
+    pinMode(BATTERY_ADC_PIN, INPUT);
+    analogReadResolution(12);
+    analogSetAttenuation(ADC_11db);
+    updateBattery();
 
     lastCommandTime = millis(); // Initialisation du timer de sécurité
 }
@@ -224,6 +235,14 @@ void loop() {
         updateOLED("ERREUR WIFI", "reconnexion...");
         WiFi.reconnect();
         lastWifiCheck = millis();
+    }
+
+
+    // mise à jour du pourcentage de batterie toutes les 30 secondes
+    static unsigned long lastBatteryRead = 0;
+    if (millis() - lastBatteryRead > BATTERY_READ_INTERVAL) {
+        updateBattery();
+        lastBatteryRead = millis();
     }
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
