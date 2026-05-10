@@ -1,9 +1,22 @@
+/************************************************************
+ *                  fichier robot_functions.cpp             *
+ ************************************************************
+ *                                                          *
+ *                                                          *
+ *                                                          *
+ *                                                          *                                                     
+ ************************************************************/
+
+
+
+
+
 #include "robot_functions.h"
 
-SemaphoreHandle_t actionMutex;
 
+SemaphoreHandle_t actionMutex; // Mutex pour protéger l'accès à current_action
 
-// fonction pour mettre à jour l'affichage OLED
+// Met à jour l'affichage OLED avec deux lignes de texte
 void updateOLED(const String& line1, const String& line2) {
     if (!isDisplayOn) return;
     display.clearDisplay();
@@ -16,7 +29,7 @@ void updateOLED(const String& line1, const String& line2) {
     display.display();
 }
 
-// fonction pour sauvegarder les credentials WiFi dans les Preferences
+// Sauvegarde les credentials WiFi dans les Preferences
 void saveWifiCredentials(const char* ssid, const char* pass) {
     preferences.begin(PREFS_NAMESPACE, false); 
     preferences.putString("ssid", ssid);
@@ -24,7 +37,7 @@ void saveWifiCredentials(const char* ssid, const char* pass) {
     preferences.end();
 }
 
-// fonction pour sauvegarder les credentials Web dans les Preferences
+// Sauvegarde les credentials Web dans les Preferences
 void saveAuthCredentials(const char* user, const char* pass) {
     preferences.begin(PREFS_NAMESPACE, false); 
     preferences.putString("web_user", user);
@@ -32,7 +45,7 @@ void saveAuthCredentials(const char* user, const char* pass) {
     preferences.end();
 }
 
-// Fonction factorisée pour vérifier l'authentification
+// Vérifie l'authentification de la requête HTTP
 bool isAuthenticated(AsyncWebServerRequest *request) {
     if (!request->authenticate(www_username.c_str(), www_password.c_str())) {
         request->requestAuthentication();
@@ -41,11 +54,11 @@ bool isAuthenticated(AsyncWebServerRequest *request) {
     return true;
 }
 
-// Fonction pour mettre à jour l'action courante
+// Met à jour l'action courante du robot et applique la logique moteur correspondante
 void setAction(Action action) {
     Action actionToApply = Action::STOP;
 
-    if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
+    if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {// On protège l'accès à current_action
         if (current_action != action) {
             current_action = action;
             lastCommandTime = millis();
@@ -58,7 +71,7 @@ void setAction(Action action) {
     applyMotorLogic(actionToApply);
 }
 
-// Fonction pour appliquer la logique des moteurs en fonction de l'action courante
+// Applique la logique moteur en fonction de l'action demandée
 void applyMotorLogic(Action action) {
     if (action == Action::AVANCER) {
         analogWrite(MOTEUR_A_IN1, VITESSE_CROISIERE);
@@ -83,10 +96,10 @@ void applyMotorLogic(Action action) {
     } else if (action == Action::STOP) {
         #if BRAKE_MODE
             // Freinage actif : les deux pins à HIGH pour chaque moteur
-            analogWrite(MOTEUR_A_IN1, 255);
-            analogWrite(MOTEUR_A_IN2, 255);
-            analogWrite(MOTEUR_B_IN1, 255);
-            analogWrite(MOTEUR_B_IN2, 255);
+            digitalWrite(MOTEUR_A_IN1, HIGH);
+            digitalWrite(MOTEUR_A_IN2, HIGH);
+            digitalWrite(MOTEUR_B_IN1, HIGH);
+            digitalWrite(MOTEUR_B_IN2, HIGH);
         #else
             // Roues libres : les deux pins à LOW pour chaque moteur    
             analogWrite(MOTEUR_A_IN1, 0);
@@ -97,7 +110,7 @@ void applyMotorLogic(Action action) {
     }    
 }  
 
-// Fonction pour convertir une action en chaîne de caractères pour l'affichage
+// Convertit une action en chaîne de caractères pour l'affichage
 const char* actionToString(Action a) {
     switch(a) {
         case Action::AVANCER:     return "AVANCER";
@@ -108,15 +121,15 @@ const char* actionToString(Action a) {
     }
 }
 
-// Fonction pour basculer l'état de l'affichage OLED
+// Active ou désactive l'affichage OLED
 void toggleDisplay(bool state) {
     isDisplayOn = state; // On met à jour l'état mémorisé
     display.ssd1306_command(state ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
-    
+  
     // Si on rallume, on force une mise à jour pour ne pas avoir un écran noir
     if (state) {
         Action snapshot = Action::STOP;
-        if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
+        if (xSemaphoreTake(actionMutex, portMAX_DELAY)) { // On prend un snapshot de l'action courante pour l'afficher
             snapshot = current_action;
             xSemaphoreGive(actionMutex);
         }

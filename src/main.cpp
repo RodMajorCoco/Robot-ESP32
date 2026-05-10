@@ -121,6 +121,8 @@ void setup() {
     });
 
     server.begin();
+
+    lastCommandTime = millis(); // Initialisation du timer de sécurité
 }
 
 void loop() {

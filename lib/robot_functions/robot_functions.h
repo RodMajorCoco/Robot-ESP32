@@ -1,6 +1,19 @@
+/************************************************************
+ *                  fichier robot_functions.h               *
+ ************************************************************
+ *                                                          *
+ *                                                          *
+ *                                                          *
+ *                                                          *                                                     
+ ************************************************************/
+
 #ifndef ROBOT_FUNCTIONS_H
 #define ROBOT_FUNCTIONS_H
 
+
+/************************************************************
+ *              Gestion des includes                        *
+ ***********************************************************/
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
 #include <Adafruit_SSD1306.h>
@@ -9,7 +22,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
-// config.h ou robot_functions.h
+/************************************************************
+ *              Définition des actions                      *
+ ***********************************************************/
 enum class Action {
     STOP,
     AVANCER,
@@ -18,7 +33,9 @@ enum class Action {
     ROTATION_D
 };
 
-// Variables globales partagées
+/************************************************************
+ *              Variables globales partagées                *
+ ***********************************************************/
 extern unsigned long lastCommandTime;
 extern String www_username;
 extern String www_password;
@@ -28,14 +45,93 @@ extern volatile bool isDisplayOn;
 extern Action current_action;
 extern SemaphoreHandle_t actionMutex;
 
-// Fonctions utilitaires
+/************************************************************
+ *                  Fonctions utilitaires                   *
+ ***********************************************************/
+
+
+/**
+ * @brief Met à jour l'affichage OLED.
+ *
+ * Affiche deux lignes de texte sur l'écran OLED si l'écran est activé.
+ *
+ * @param line1 Première ligne affichée (titre)
+ * @param line2 Deuxième ligne affichée (valeur)
+ */
 void updateOLED(const String& line1, const String& line2);
+
+
+/**
+ * @brief Vérifie l'authentification de la requête.
+ *
+ * Demande l'authentification HTTP si les identifiants ne correspondent pas.
+ *
+ * @param request Requête HTTP entrante
+ * @return true si l'utilisateur est authentifié
+ * @return false sinon
+ */
 bool isAuthenticated(AsyncWebServerRequest *request);
+
+/**
+ * @brief Sauvegarde les credentials WiFi.
+ *
+ * Enregistre le SSID et le mot de passe WiFi dans les Preferences.
+ *
+ * @param ssid Nom du réseau WiFi
+ * @param pass Mot de passe du réseau WiFi
+ */
 void saveWifiCredentials(const char* ssid, const char* pass);
+
+
+/**
+ * @brief Sauvegarde les credentials Web.
+ *
+ * Enregistre le nom d'utilisateur et le mot de passe Web dans les Preferences.
+ *
+ * @param user Nom d'utilisateur Web
+ * @param pass Mot de passe Web
+ */
 void saveAuthCredentials(const char* user, const char* pass);
+
+/**
+ * @brief Met à jour l'action courante du robot.
+ *
+ * Change l'action actuelle, met à jour l'heure de la dernière commande
+ * et applique la logique moteurs correspondante.
+ *
+ * @param action Action à appliquer
+ */
 void setAction(Action action);
+
+/**
+ * @brief Applique la logique des moteurs selon l'action.
+ *
+ * Définit les sorties des moteurs pour avancer, reculer,
+ * tourner ou arrêter le robot.
+ *
+ * @param action Action à traduire en commandes moteurs
+ */
 void applyMotorLogic(Action action);
+
+/**
+ * @brief Active ou désactive l'affichage OLED.
+ *
+ * Met à jour l'état local de l'écran OLED et rafraîchit l'affichage
+ * lorsqu'on le rallume.
+ *
+ * @param state État souhaité de l'écran OLED
+ */
 void toggleDisplay(bool state);
+
+/**
+ * @brief Convertit une action en texte lisible.
+ *
+ * Retourne la chaîne de caractères correspondant à l'action
+ * pour l'affichage ou le débogage.
+ *
+ * @param a Action à convertir 
+ * @return const char* Chaîne représentant l'action
+ */
 const char* actionToString(Action a);
 
 #endif
