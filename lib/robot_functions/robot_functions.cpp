@@ -81,10 +81,19 @@ void applyMotorLogic(Action action) {
         analogWrite(MOTEUR_B_IN1, 0);
         analogWrite(MOTEUR_B_IN2, VITESSE_ROTATION);
     } else if (action == Action::STOP) {
-        analogWrite(MOTEUR_A_IN1, 0);
-        analogWrite(MOTEUR_A_IN2, 0);
-        analogWrite(MOTEUR_B_IN1, 0);
-        analogWrite(MOTEUR_B_IN2, 0); 
+        #if BRAKE_MODE
+            // Freinage actif : les deux pins à HIGH pour chaque moteur
+            analogWrite(MOTEUR_A_IN1, 255);
+            analogWrite(MOTEUR_A_IN2, 255);
+            analogWrite(MOTEUR_B_IN1, 255);
+            analogWrite(MOTEUR_B_IN2, 255);
+        #else
+            // Roues libres : les deux pins à LOW pour chaque moteur    
+            analogWrite(MOTEUR_A_IN1, 0);
+            analogWrite(MOTEUR_A_IN2, 0);
+            analogWrite(MOTEUR_B_IN1, 0);
+            analogWrite(MOTEUR_B_IN2, 0); 
+        #endif
     }    
 }  
 

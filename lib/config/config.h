@@ -1,5 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
+#define BRAKE_MODE true
 
 #include <Arduino.h>
 
@@ -23,5 +24,7 @@ const char* const PREFS_NAMESPACE = "wifi-gate";
 // --- PARAMÈTRES DE MOUVEMENT ---
 const int VITESSE_CROISIERE = 200; // Valeur entre 0 et 255
 const int VITESSE_ROTATION = 180;
+
+
 
 #endif
