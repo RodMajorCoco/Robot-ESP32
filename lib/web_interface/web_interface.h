@@ -1,3 +1,21 @@
+/************************************************************
+ *  Fichier  : web_interface.h
+ *  Projet   : Robot ESP32-S3
+ *  Auteur   : 
+ *  Date     : 2026-05-01
+ *  Version  : 1.0
+ * ----------------------------------------------------------
+ *  Description :
+ *    Interface web embarquée (HTML/CSS/JS) stockée en
+ *    mémoire programme (PROGMEM). Fournit une télécommande
+ *    tactile responsive avec boutons de direction, arrêt
+ *    d'urgence, contrôle de l'écran OLED et du driver
+ *    moteur. Compatible mobile et PC.
+ * ----------------------------------------------------------
+ *  Historique :
+ *    1.0 - 2026-05-01 : Création
+ ************************************************************/
+
 #ifndef WEB_INTERFACE_H
 #define WEB_INTERFACE_H
 

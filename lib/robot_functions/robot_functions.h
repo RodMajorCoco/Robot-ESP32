@@ -1,10 +1,18 @@
 /************************************************************
- *                  fichier robot_functions.h               *
- ************************************************************
- *                                                          *
- *                                                          *
- *                                                          *
- *                                                          *                                                     
+ *  Fichier  : robot_functions.h
+ *  Projet   : Robot ESP32-S3
+ *  Auteur   : 
+ *  Date     : 2026-05-01
+ *  Version  : 1.0
+ *  Matériel : ESP32-S3 + DRV8833 + SSD1306
+ * ----------------------------------------------------------
+ *  Description :
+ *    Déclarations des fonctions de contrôle du robot,
+ *    de l'enum Action, et des variables globales partagées
+ *    entre main.cpp et robot_functions.cpp.
+ * ----------------------------------------------------------
+ *  Historique :
+ *    1.0 - 2026-05-01 : Création
  ************************************************************/
 
 #ifndef ROBOT_FUNCTIONS_H

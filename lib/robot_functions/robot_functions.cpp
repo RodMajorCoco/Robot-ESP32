@@ -1,14 +1,20 @@
 /************************************************************
- *                  fichier robot_functions.cpp             *
- ************************************************************
- *                                                          *
- *                                                          *
- *                                                          *
- *                                                          *                                                     
+ *  Fichier  : robot_functions.cpp
+ *  Projet   : Robot ESP32-S3
+ *  Auteur   : 
+ *  Date     : 2026-05-01
+ *  Version  : 1.0
+ *  Matériel : ESP32-S3 + DRV8833 + SSD1306
+ * ----------------------------------------------------------
+ *  Description :
+ *    Implémentation de la logique de contrôle du robot :
+ *    commande PWM des moteurs via DRV8833, affichage OLED,
+ *    gestion des actions avec protection mutex FreeRTOS,
+ *    activation/désactivation du driver et de l'écran.
+ * ----------------------------------------------------------
+ *  Historique :
+ *    1.0 - 2026-05-01 : Création
  ************************************************************/
-
-
-
 
 
 #include "robot_functions.h"
@@ -76,6 +82,10 @@ void applyMotorLogic(Action action) {
         Serial.print("[MOTOR] ");
         Serial.println(actionToString(action));
     #endif
+
+    if (!isDriverOn && action != Action::STOP) {
+        return; // On n'essaie même pas de piloter si le driver est OFF
+    }
 
     if (action == Action::AVANCER) {
         analogWrite(MOTEUR_A_IN1, VITESSE_CROISIERE);

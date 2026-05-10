@@ -1,3 +1,22 @@
+/************************************************************
+ *  Fichier  : main.cpp
+ *  Projet   : Robot ESP32-S3
+ *  Auteur   : 
+ *  Date     : 2026-05-01
+ *  Version  : 1.0
+ *  Matériel : ESP32-S3 N16R8  + DRV8833 + SSD1306
+ * ----------------------------------------------------------
+ *  Description :
+ *    Point d'entrée du programme. Initialise le matériel
+ *    (moteurs, OLED, WiFi) et configure le serveur web
+ *    asynchrone pour la télécommande du robot.
+ *    Gère la reconnexion WiFi et le watchdog de sécurité
+ *    (arrêt automatique après 5 s sans commande).
+ * ----------------------------------------------------------
+ *  Historique :
+ *    1.0 - 2026-05-01 : Création
+ ************************************************************/
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
@@ -192,7 +211,11 @@ void loop() {
 
     // Si la connexion est perdue, on tente de se reconnecter toutes les 10 secondes
     static unsigned long lastWifiCheck = 0;
-    if (WiFi.status() != WL_CONNECTED && (millis() - lastWifiCheck > WIFI_RECONNECT_INTERVAL)) {
+    unsigned long now = millis();
+    bool wifiLost = (WiFi.status() != WL_CONNECTED);
+    bool intervalPassed = ((now - lastWifiCheck) > WIFI_RECONNECT_INTERVAL);
+
+    if (wifiLost && intervalPassed) {
         
         #if DEBUG_MODE
             Serial.println("WiFi perdu, reconnexion...");
@@ -204,8 +227,8 @@ void loop() {
     }
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
-    Action snapshotAction;
-    unsigned long snapshotActionTime;
+    Action snapshotAction = Action::STOP;
+    unsigned long snapshotActionTime = millis();
 
     if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
         snapshotAction = current_action;
