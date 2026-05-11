@@ -32,6 +32,12 @@
 #define WIFI_RECONNECT_INTERVAL     10000     // Intervalle de reconnexion WiFi (ms)
 #define PREFS_NAMESPACE "wifi-gate"
 
+// --- MODE ACCESS POINT DE CONFIGURATION ---
+#define AP_SSID             "Robot-Config"
+#define AP_IP               "192.168.4.1"   // IP par défaut ESP32 en mode AP
+#define AP_CONFIG_TIMEOUT   300000          // Timeout mode AP (ms) — 5 min, puis reboot
+
+
 
 // --- CONFIGURATION ÉCRAN OLED ---
 #define SDA_PIN     8

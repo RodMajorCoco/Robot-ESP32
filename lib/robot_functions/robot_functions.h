@@ -28,6 +28,7 @@
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
 #include "config.h"
+#include "web_interface.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
@@ -55,6 +56,7 @@ extern volatile bool isDriverOn;
 extern Action current_action;
 extern SemaphoreHandle_t actionMutex;
 extern volatile int32_t batteryPercent;
+extern volatile bool isAPMode;
 
 /************************************************************
  *                  Fonctions utilitaires                   *
@@ -161,5 +163,14 @@ const char* actionToString(Action a);
  * Lit la tension de la batterie et calcule le pourcentage correspondant.
  */
 void updateBattery();
+
+/**
+ * @brief Démarre le portail de configuration.
+ *
+ * Initialise et démarre le portail de configuration en mode AP.
+ *
+ * @param server Références au serveur web
+ */
+void startConfigPortal(AsyncWebServer& server);
 
 #endif

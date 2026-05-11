@@ -214,3 +214,71 @@ void updateBattery() {
                       raw, vADC, vBat, pct);
     #endif
 }
+
+
+volatile bool isAPMode = false;
+
+void startConfigPortal(AsyncWebServer& server) {
+    isAPMode = true;
+
+    // Démarrage du point d'accès
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.softAP(AP_SSID);
+
+    updateOLED("CONFIG MODE", AP_SSID);
+
+    #if DEBUG_MODE
+        Serial.println("[AP] Portail de configuration démarré");
+        Serial.print("[AP] IP : ");
+        Serial.println(WiFi.softAPIP());
+    #endif
+
+    // Page de configuration
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(200, "text/html", index_html_AP);
+    });
+
+    // Route scan WiFi
+    server.on("/scan", HTTP_GET, [](AsyncWebServerRequest *request){
+        int n = WiFi.scanNetworks();
+        String json = "[";
+        for (int i = 0; i < n; i++) {
+            if (i > 0) json += ",";
+            json += "{\"ssid\":\"" + WiFi.SSID(i) + "\","
+                  + "\"rssi\":"    + WiFi.RSSI(i)  + ","
+                  + "\"secure\":"  + (WiFi.encryptionType(i) != WIFI_AUTH_OPEN ? "true" : "false") + "}";
+        }
+        json += "]";
+        WiFi.scanDelete();
+        request->send(200, "application/json", json);
+    });
+
+    // Route sauvegarde
+    server.on("/save", HTTP_POST, [](AsyncWebServerRequest *request){
+        if (request->hasParam("ssid", true) && request->hasParam("pass", true) &&
+            request->hasParam("webuser", true) && request->hasParam("webpass", true)) {
+
+            String ssid    = request->getParam("ssid",    true)->value();
+            String pass    = request->getParam("pass",    true)->value();
+            String webuser = request->getParam("webuser", true)->value();
+            String webpass = request->getParam("webpass", true)->value();
+
+            saveWifiCredentials(ssid.c_str(), pass.c_str());
+            saveAuthCredentials(webuser.c_str(), webpass.c_str());
+
+            request->send(200);
+            updateOLED("SAUVEGARDE", "Redemarrage...");
+
+            #if DEBUG_MODE
+                Serial.println("[AP] Credentials sauvegardés — reboot");
+            #endif
+
+            delay(1500);
+            ESP.restart();
+        } else {
+            request->send(400);
+        }
+    });
+
+    server.begin();
+}

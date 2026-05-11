@@ -45,8 +45,11 @@ volatile bool isDisplayOn = true;
 volatile bool isDriverOn = true;
 
 void setup() {
- 
-    // Configuration des pins moteurs
+    /****************************************************
+     *     Configuration des pins moteurs et DRV8833    *
+     ****************************************************/
+    
+    // Configuration des pins de contrôle des moteurs
     pinMode(MOTEUR_A_IN1, OUTPUT);
     pinMode(MOTEUR_A_IN2, OUTPUT);
     pinMode(MOTEUR_B_IN1, OUTPUT);
@@ -56,13 +59,28 @@ void setup() {
     pinMode(DRV8833_EEP, OUTPUT);
     digitalWrite(DRV8833_EEP, HIGH);
 
-    // Initialisation du mutex pour protéger l'accès à current_action
+
+    /****************************************************
+     *        Initialisation du mutex                   *
+     ****************************************************/
+
+    // Initialisation du mutex pour protéger l'accès à current_action en multi-threading (ISR + loop)
     actionMutex = xSemaphoreCreateMutex();
+
+
+    /****************************************************
+     *        Initialisation de l'interface série       *
+     ****************************************************/
 
     // Initialisation de l'interface série pour le debug
     #if DEBUG_MODE
         Serial.begin(115200);
     #endif
+
+
+    /****************************************************
+     *        Initialisation de l'écran OLED            *
+     ****************************************************/
 
     // Initialisation de l'écran OLED
     Wire.begin(SDA_PIN, SCL_PIN);
@@ -71,26 +89,52 @@ void setup() {
     display.setTextColor(WHITE);
     updateOLED("ROBOT S3 READY", "BOOTING...");
 
-    // Récupération WiFi via Preferences
+
+   /****************************************************
+    *        Gestion du WiFi                           *
+    ****************************************************/
+
     preferences.begin(PREFS_NAMESPACE, true);
-    String ssid = preferences.getString("ssid", "ERR");
-    String pass = preferences.getString("password", "ERR");
+    String ssid = preferences.getString("ssid", "");
+    String pass = preferences.getString("password", "");
     preferences.end();
 
-    // Connexion au WiFi
+    // Si credentials absents → portail de configuration immédiat
+    if (ssid.isEmpty() || pass.isEmpty()) {
+        
+        #if DEBUG_MODE
+            Serial.println("[WIFI] Credentials absents, lancement portail AP");
+        #endif
+        
+        startConfigPortal(server);
+        return; // on sort de setup(), loop() gère le timeout AP
+    }
+
+    // Tentative de connexion
     WiFi.begin(ssid.c_str(), pass.c_str());
     int timeout_counter = 0;
     while (WiFi.status() != WL_CONNECTED && timeout_counter < MAX_WIFI_RETRIES) {
         delay(500);
         timeout_counter++;
-        updateOLED("ROBOT S3 READY", "Tentative: " + String(timeout_counter));
+        updateOLED("CONNEXION...", "Tentative: " + String(timeout_counter));
     }
 
     if (WiFi.status() == WL_CONNECTED) {
         updateOLED("CONNECTE", WiFi.localIP().toString());
     } else {
-        updateOLED("ERREUR WIFI", "Verif config");
+
+        // Connexion échouée → portail de configuration
+        #if DEBUG_MODE
+            Serial.println("[WIFI] Connexion échouée, lancement portail AP");
+        #endif
+        
+        startConfigPortal(server);
+        return;
     }
+
+    /****************************************************
+     *        Gestion du serveur web                    *
+     ****************************************************/
 
     // Récupération des credentials Web via Preferences
     preferences.begin(PREFS_NAMESPACE, true);
@@ -210,15 +254,47 @@ void setup() {
 
     server.begin();
 
+
+    /****************************************************
+     *   Initialisation de la lecture de la batterie    *
+     ****************************************************/
+
     pinMode(BATTERY_ADC_PIN, INPUT);
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db);
     updateBattery();
 
-    lastCommandTime = millis(); // Initialisation du timer de sécurité
+
+    /****************************************************
+     *   Initialisation du timer de sécurité            *
+     ****************************************************/
+
+    lastCommandTime = millis(); 
 }
 
 void loop() {
+
+
+    /****************************************************
+     *   Timeout mode AP (reboot si personne ne config) *
+     ****************************************************/
+    if (isAPMode) {
+        static unsigned long apStartTime = millis();
+        if (millis() - apStartTime > AP_CONFIG_TIMEOUT) {
+            #if DEBUG_MODE
+                Serial.println("[AP] Timeout — reboot");
+            #endif
+            updateOLED("AP TIMEOUT", "Reboot...");
+            delay(1000);
+            ESP.restart();
+        }
+        return; // en mode AP, on ne fait que surveiller le timeout
+    }
+
+
+    /****************************************************
+     *   Watchdog de connexion wifi                     *
+     ****************************************************/
 
     // Si la connexion est perdue, on tente de se reconnecter toutes les 10 secondes
     static unsigned long lastWifiCheck = 0;
@@ -238,12 +314,9 @@ void loop() {
     }
 
 
-    // mise à jour du pourcentage de batterie toutes les 30 secondes
-    static unsigned long lastBatteryRead = 0;
-    if (millis() - lastBatteryRead > BATTERY_READ_INTERVAL) {
-        updateBattery();
-        lastBatteryRead = millis();
-    }
+    /****************************************************
+     *   Watchdog de sécurité                           *
+     ****************************************************/
 
     // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
     Action snapshotAction = Action::STOP;
@@ -260,4 +333,14 @@ void loop() {
     }
 
    
+    /****************************************************
+     *   Mise à jour des capteurs                       *
+     ****************************************************/
+
+    // mise à jour du pourcentage de batterie toutes les 30 secondes
+    static unsigned long lastBatteryRead = 0;
+    if (millis() - lastBatteryRead > BATTERY_READ_INTERVAL) {
+        updateBattery();
+        lastBatteryRead = millis();
+    }
 }
