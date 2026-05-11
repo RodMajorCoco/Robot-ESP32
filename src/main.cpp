@@ -3,7 +3,7 @@
  *  Projet   : Robot ESP32-S3
  *  Auteur   : 
  *  Date     : 2026-05-01
- *  Version  : 1.1
+ *  Version  : 1.2
  *  Matériel : ESP32-S3 N16R8  + DRV8833 + SSD1306
  * ----------------------------------------------------------
  *  Description :
@@ -16,6 +16,8 @@
  *  Historique :
  *    1.0 - 2026-05-01 : Création
  *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie et endpoint /battery
+ *    1.2 - 2026-07-01 : Ajout du mode AP en cas d'échec de connexion WiFi pour 
+ *                       permettre la reconfiguration sans reflash
  ************************************************************/
 
 #include <Arduino.h>
