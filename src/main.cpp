@@ -1,348 +1,103 @@
 /************************************************************
  *  Fichier  : main.cpp
  *  Projet   : Robot ESP32-S3
- *  Auteur   : 
- *  Date     : 2026-05-01
- *  Version  : 1.2
- *  Matériel : ESP32-S3 N16R8  + DRV8833 + SSD1306
+ *  Version  : 2.0 — refactoring OO
+ *  Matériel : ESP32-S3 N16R8 + DRV8833 + SSD1306
  * ----------------------------------------------------------
  *  Description :
- *    Point d'entrée du programme. Initialise le matériel
- *    (moteurs, OLED, WiFi) et configure le serveur web
- *    asynchrone pour la télécommande du robot.
- *    Gère la reconnexion WiFi et le watchdog de sécurité
- *    (arrêt automatique après 5 s sans commande).
- * ----------------------------------------------------------
- *  Historique :
- *    1.0 - 2026-05-01 : Création
- *    1.1 - 2026-06-01 : Ajout de la lecture de la batterie et endpoint /battery
- *    1.2 - 2026-07-01 : Ajout du mode AP en cas d'échec de connexion WiFi pour 
- *                       permettre la reconfiguration sans reflash
+ *    Point d'entrée. Instancie les quatre sous-systèmes,
+ *    gère le boot (WiFi normal ou portail AP), puis délègue
+ *    à chaque objet dans loop().
  ************************************************************/
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <ESPAsyncWebServer.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Preferences.h>
-#include <freertos/semphr.h>
-
-#include "robot_functions.h"
-#include "web_interface.h"
 #include "config.h"
+#include "motor_controller.h"
+#include "oled_display.h"
+#include "battery_monitor.h"
+#include "wifi_manager.h"
+#include "robot_server.h"
 
+// ---------------------------------------------------------------------------
+// Instances globales des sous-systèmes
+// ---------------------------------------------------------------------------
+MotorController motors;
+OledDisplay     oled;
+BatteryMonitor  battery;
+WifiManager     wifi;
+RobotServer     robotServer(motors, oled, battery, wifi);
 
-Adafruit_SSD1306 display(128, 64, &Wire, -1);
-
-AsyncWebServer server(80);
-Preferences preferences;
-
-Action current_action = Action::STOP;
-unsigned long lastCommandTime = 0;
-String www_username;
-String www_password;
-volatile bool isDisplayOn = true;
-volatile bool isDriverOn = true;
-
+// ---------------------------------------------------------------------------
 void setup() {
-    /****************************************************
-     *     Configuration des pins moteurs et DRV8833    *
-     ****************************************************/
-    
-    // Configuration des pins de contrôle des moteurs
-    pinMode(MOTEUR_A_IN1, OUTPUT);
-    pinMode(MOTEUR_A_IN2, OUTPUT);
-    pinMode(MOTEUR_B_IN1, OUTPUT);
-    pinMode(MOTEUR_B_IN2, OUTPUT);   
 
-    // Configuration du pin de contrôle du mode de freinage du DRV8833
-    pinMode(DRV8833_EEP, OUTPUT);
-    digitalWrite(DRV8833_EEP, HIGH);
+#if DEBUG_MODE
+    Serial.begin(115200);
+#endif
 
+    // --- Moteurs ---
+    motors.begin();
 
-    /****************************************************
-     *        Initialisation du mutex                   *
-     ****************************************************/
+    // --- Écran OLED ---
+    oled.begin();
+    oled.update("ROBOT S3 READY", "BOOTING...", 100);
 
-    // Initialisation du mutex pour protéger l'accès à current_action en multi-threading (ISR + loop)
-    actionMutex = xSemaphoreCreateMutex();
+    // --- WiFi ---
+    bool connected = wifi.connect();
 
-
-    /****************************************************
-     *        Initialisation de l'interface série       *
-     ****************************************************/
-
-    // Initialisation de l'interface série pour le debug
-    #if DEBUG_MODE
-        Serial.begin(115200);
-    #endif
-
-
-    /****************************************************
-     *        Initialisation de l'écran OLED            *
-     ****************************************************/
-
-    // Initialisation de l'écran OLED
-    Wire.begin(SDA_PIN, SCL_PIN);
-    if(!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) for(;;);
-    
-    display.setTextColor(WHITE);
-    updateOLED("ROBOT S3 READY", "BOOTING...");
-
-
-   /****************************************************
-    *        Gestion du WiFi                           *
-    ****************************************************/
-
-    preferences.begin(PREFS_NAMESPACE, true);
-    String ssid = preferences.getString("ssid", "");
-    String pass = preferences.getString("password", "");
-    preferences.end();
-
-    // Si credentials absents → portail de configuration immédiat
-    if (ssid.isEmpty() || pass.isEmpty()) {
-        
-        #if DEBUG_MODE
-            Serial.println("[WIFI] Credentials absents, lancement portail AP");
-        #endif
-        
-        startConfigPortal(server);
-        return; // on sort de setup(), loop() gère le timeout AP
+    if (!connected) {
+        // Credentials absents ou connexion échouée → portail AP
+        robotServer.beginAP();
+        return; // loop() se chargera du timeout AP
     }
 
-    // Tentative de connexion
-    WiFi.begin(ssid.c_str(), pass.c_str());
-    int timeout_counter = 0;
-    while (WiFi.status() != WL_CONNECTED && timeout_counter < MAX_WIFI_RETRIES) {
-        delay(500);
-        timeout_counter++;
-        updateOLED("CONNEXION...", "Tentative: " + String(timeout_counter));
-    }
+    oled.update("CONNECTE", WiFi.localIP().toString(), battery.getPercent());
 
-    if (WiFi.status() == WL_CONNECTED) {
-        updateOLED("CONNECTE", WiFi.localIP().toString());
-    } else {
+    // --- Credentials interface web ---
+    String webUser, webPass;
+    wifi.loadAuthCredentials(webUser, webPass);
 
-        // Connexion échouée → portail de configuration
-        #if DEBUG_MODE
-            Serial.println("[WIFI] Connexion échouée, lancement portail AP");
-        #endif
-        
-        startConfigPortal(server);
+    // --- Serveur télécommande ---
+    robotServer.beginNormal(webUser, webPass);
+
+    // --- Batterie ---
+    battery.begin();
+    battery.update();
+
+    // --- Timer watchdog ---
+    // (géré via MotorController::getLastCommandTime dans loop)
+    oled.update("ROBOT S3 READY", "STOP", battery.getPercent());
+}
+
+// ---------------------------------------------------------------------------
+void loop() {
+
+    // --- Mode AP : surveiller uniquement le timeout ---
+    if (robotServer.isAPMode()) {
+        robotServer.handleAPTimeout();
         return;
     }
 
-    /****************************************************
-     *        Gestion du serveur web                    *
-     ****************************************************/
-
-    // Récupération des credentials Web via Preferences
-    preferences.begin(PREFS_NAMESPACE, true);
-    www_username = preferences.getString("web_user", "ERR");
-    www_password = preferences.getString("web_pass", "ERR");
-    preferences.end();
-
-    // Configuration du serveur web pour les différentes actions
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-        request->send_P(200, "text/html", index_html);
-    });
-
-    server.on("/forward", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] forward");
-        #endif
-
-        setAction(Action::AVANCER);
-        request->send(200);
-    });
-
-    server.on("/backward", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] backward");
-        #endif
-
-        setAction(Action::RECULER);
-        request->send(200);
-    });
-
-    server.on("/left", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] left");
-        #endif
-
-        setAction(Action::ROTATION_G);
-        request->send(200);
-    });
-
-    server.on("/right", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] right");
-        #endif
-
-        setAction(Action::ROTATION_D);
-        request->send(200);
-    });
-
-    server.on("/stop", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] stop");
-        #endif
-
-        setAction(Action::STOP);
-        request->send(200);
-    });
-
-    server.on("/display/on", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] display on");
-        #endif
-
-        toggleDisplay(true);
-        request->send(200);
-    });
-
-    server.on("/display/off", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] display off");
-        #endif
-
-        toggleDisplay(false);
-        request->send(200);
-    });
-
-    server.on("/driver/on", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-        
-        #if DEBUG_MODE
-            Serial.println("[CMD] driver on");
-        #endif
-
-        toggleDriver(true);
-        request->send(200);
-    });
-
-    server.on("/driver/off", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-
-        #if DEBUG_MODE
-            Serial.println("[CMD] driver off");
-        #endif
-
-        toggleDriver(false);
-        request->send(200);
-    });
-
-    server.on("/battery", HTTP_GET, [](AsyncWebServerRequest *request){
-        if(!isAuthenticated(request)) return;
-        request->send(200, "text/plain", String(batteryPercent));
-    });
-
-    server.begin();
-
-
-    /****************************************************
-     *   Initialisation de la lecture de la batterie    *
-     ****************************************************/
-
-    pinMode(BATTERY_ADC_PIN, INPUT);
-    analogReadResolution(12);
-    analogSetAttenuation(ADC_11db);
-    updateBattery();
-
-
-    /****************************************************
-     *   Initialisation du timer de sécurité            *
-     ****************************************************/
-
-    lastCommandTime = millis(); 
-}
-
-void loop() {
-
-
-    /****************************************************
-     *   Timeout mode AP (reboot si personne ne config) *
-     ****************************************************/
-    if (isAPMode) {
-        static unsigned long apStartTime = millis();
-        if (millis() - apStartTime > AP_CONFIG_TIMEOUT) {
-            #if DEBUG_MODE
-                Serial.println("[AP] Timeout — reboot");
-            #endif
-            updateOLED("AP TIMEOUT", "Reboot...");
-            delay(1000);
-            ESP.restart();
-        }
-        return; // en mode AP, on ne fait que surveiller le timeout
+    // --- Watchdog WiFi ---
+    if (!wifi.isConnected()) {
+        oled.update("ERREUR WIFI", "reconnexion...", battery.getPercent());
+        wifi.handleReconnect();
     }
 
+    // --- Watchdog de sécurité (arrêt si pas de commande depuis > 5 s) ---
+    Action current = motors.getCurrentAction();
+    if (current != Action::STOP &&
+        (millis() - motors.getLastCommandTime() > MAX_PERIOD_WITHOUT_COMMAND)) {
 
-    /****************************************************
-     *   Watchdog de connexion wifi                     *
-     ****************************************************/
-
-    // Si la connexion est perdue, on tente de se reconnecter toutes les 10 secondes
-    static unsigned long lastWifiCheck = 0;
-    unsigned long now = millis();
-    bool wifiLost = (WiFi.status() != WL_CONNECTED);
-    bool intervalPassed = ((now - lastWifiCheck) > WIFI_RECONNECT_INTERVAL);
-
-    if (wifiLost && intervalPassed) {
-        
-        #if DEBUG_MODE
-            Serial.println("WiFi perdu, reconnexion...");
-        #endif
-        
-        updateOLED("ERREUR WIFI", "reconnexion...");
-        WiFi.reconnect();
-        lastWifiCheck = millis();
+        motors.setAction(Action::STOP);
+        oled.update("ROBOT S3 READY",
+                    MotorController::actionToString(Action::STOP),
+                    battery.getPercent());
     }
 
-
-    /****************************************************
-     *   Watchdog de sécurité                           *
-     ****************************************************/
-
-    // Si aucune commande n'est reçue depuis plus de 5 secondes, on remet l'état à STOP
-    Action snapshotAction = Action::STOP;
-    unsigned long snapshotActionTime = millis();
-
-    if (xSemaphoreTake(actionMutex, portMAX_DELAY)) {
-        snapshotAction = current_action;
-        snapshotActionTime = lastCommandTime;
-        xSemaphoreGive(actionMutex);
-    }
-
-    if(snapshotAction != Action::STOP && (millis() - snapshotActionTime > MAX_PERIOD_WITHOUT_COMMAND)) {
-        setAction(Action::STOP);
-    }
-
-   
-    /****************************************************
-     *   Mise à jour des capteurs                       *
-     ****************************************************/
-
-    // mise à jour du pourcentage de batterie toutes les 30 secondes
+    // --- Mise à jour batterie (toutes les BATTERY_READ_INTERVAL ms) ---
     static unsigned long lastBatteryRead = 0;
     if (millis() - lastBatteryRead > BATTERY_READ_INTERVAL) {
-        updateBattery();
+        battery.update();
         lastBatteryRead = millis();
     }
 }
