@@ -7,14 +7,16 @@
  *    Classe RobotServer — configure et démarre le serveur
  *    web asynchrone (ESPAsyncWebServer).
  *
- *    Deux modes :
+ *    Deux modes de fonctionnement :
  *      • Mode normal  : télécommande + endpoints /battery,
  *                       /display/on-off, /driver/on-off.
  *      • Mode AP      : portail de configuration WiFi avec
- *                       scan, sauvegarde et reboot.
+ *                       scan, sauvegarde et reboot différé.
  *
- *    Dépend de MotorController, OledDisplay, BatteryMonitor
- *    et WifiManager ; reçoit leurs références à l'init.
+ *    Règle de sécurité : les callbacks web (core 0) ne font
+ *    que mettre à jour des variables d'état. Toute écriture
+ *    matérielle (I2C, PWM) est déclenchée depuis loop()
+ *    sur le core 1.
  ************************************************************/
 
 #ifndef ROBOT_SERVER_H
@@ -32,6 +34,10 @@
 // ---------------------------------------------------------------------------
 class RobotServer {
 public:
+    /**
+     * Constructeur — stocke les références aux sous-systèmes.
+     * Aucun accès matériel n'est effectué ici.
+     */
     RobotServer(MotorController& motors,
                 OledDisplay&     display,
                 BatteryMonitor&  battery,
@@ -39,36 +45,54 @@ public:
 
     /**
      * Configure les routes de la télécommande et démarre le serveur.
-     * @param username  Login HTTP-Basic
-     * @param password  Mot de passe HTTP-Basic
+     * Routes : /, /forward, /backward, /left, /right, /stop,
+     *          /display/on, /display/off, /driver/on, /driver/off,
+     *          /battery.
+     * @param username  Login HTTP-Basic pour toutes les routes.
+     * @param password  Mot de passe HTTP-Basic.
      */
     void beginNormal(const String& username, const String& password);
 
     /**
      * Configure les routes du portail AP et démarre le serveur.
-     * Met le WiFi en mode WIFI_AP_STA et crée le soft-AP.
+     * Met le WiFi en mode WIFI_AP_STA, crée le soft-AP (AP_SSID)
+     * et affiche l'IP sur l'écran OLED.
+     * Routes : /, /scan, /save (POST).
      */
     void beginAP();
 
-    /** À appeler dans loop() — surveille le timeout du mode AP. */
+    /**
+     * Surveille le timeout du mode AP et le reboot différé.
+     * À appeler à chaque itération de loop() quand isAPMode() = true.
+     * Déclenche ESP.restart() si AP_CONFIG_TIMEOUT est atteint ou
+     * si un reboot a été demandé par /save.
+     */
     void handleAPTimeout();
 
-    bool isAPMode()  const { return _apMode; }
+    /**
+     * Retourne true si le serveur fonctionne en mode portail AP.
+     */
+    bool isAPMode() const { return _apMode; }
 
 private:
-    AsyncWebServer  _server;
+    AsyncWebServer   _server;
     MotorController& _motors;
     OledDisplay&     _display;
     BatteryMonitor&  _battery;
     WifiManager&     _wifi;
 
-    String _username;
-    String _password;
+    String        _username;
+    String        _password;
     volatile bool _apMode;
     unsigned long _apStartTime;
     volatile bool _pendingRestart;
     unsigned long _pendingRestartTime;
 
+    /**
+     * Vérifie les credentials HTTP-Basic de la requête.
+     * Envoie automatiquement une demande d'authentification si invalide.
+     * @return  true si authentifié, false sinon.
+     */
     bool _authenticate(AsyncWebServerRequest* request);
 };
 

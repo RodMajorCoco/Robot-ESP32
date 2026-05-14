@@ -5,8 +5,13 @@
  * ----------------------------------------------------------
  *  Description :
  *    Classe MotorController — commande PWM des deux moteurs
- *    via DRV8833, avec mutex FreeRTOS sur l'action courante
- *    et watchdog de sécurité (arrêt auto si plus de commande).
+ *    via DRV8833, avec mutex FreeRTOS sur l'état partagé.
+ *
+ *    Séparation stricte des responsabilités :
+ *      • setAction() / toggleDriver() → mise à jour d'état
+ *        uniquement, appelables depuis n'importe quelle tâche.
+ *      • applyMotorLogic() → écriture PWM (LEDC), à appeler
+ *        exclusivement depuis loop() sur le core 1.
  ************************************************************/
 
 #ifndef MOTOR_CONTROLLER_H
@@ -33,34 +38,59 @@ class MotorController {
 public:
     MotorController();
 
-    /** Initialise les GPIO et le mutex. À appeler dans setup(). */
+    /**
+     * Initialise les GPIO moteurs, le mutex FreeRTOS et applique
+     * STOP sur les pins PWM. À appeler une seule fois dans setup().
+     */
     void begin();
 
     /**
-     * Change l'action courante, réinitialise le timer watchdog
-     * et applique immédiatement la logique moteur.
+     * Mémorise la nouvelle action et réinitialise le timer watchdog.
+     * Thread-safe (mutex FreeRTOS). N'écrit PAS les PWM — délégué
+     * à applyMotorLogic() appelé depuis loop().
+     * @param action  Nouvelle action à exécuter.
      */
     void setAction(Action action);
 
     /**
-     * Applique directement la logique moteur sans toucher à
-     * l'action courante (utilisé par le watchdog et toggleDriver).
+     * Écrit les niveaux PWM sur les pins moteur selon l'action.
+     * À appeler exclusivement depuis loop() (core 1) : l'API LEDC
+     * de l'Arduino core 3.x n'est pas thread-safe sur l'ESP32-S3.
+     * @param action  Action dont on applique la logique PWM.
      */
     void applyMotorLogic(Action action);
 
-    /** Active ou désactive le driver DRV8833. */
+    /**
+     * Active ou désactive le driver DRV8833 via sa pin EEP.
+     * Si désactivé, remet l'action courante à STOP (thread-safe).
+     * @param state  true = driver actif, false = driver en veille.
+     */
     void toggleDriver(bool state);
 
-    /** Retourne l'action courante (thread-safe). */
+    /**
+     * Retourne l'action courante (thread-safe via mutex).
+     * @return  Dernière action enregistrée par setAction().
+     */
     Action getCurrentAction();
 
-    /** Retourne l'horodatage de la dernière commande (thread-safe). */
+    /**
+     * Retourne l'horodatage (ms) de la dernière commande reçue.
+     * Thread-safe. Utilisé par le watchdog de sécurité dans loop().
+     * @return  Valeur de millis() au moment du dernier setAction().
+     */
     unsigned long getLastCommandTime();
 
-    /** Retourne true si le driver est actif. */
+    /**
+     * Retourne true si le driver DRV8833 est actif.
+     * Non thread-safe — lire uniquement depuis loop().
+     */
     bool isDriverEnabled() const { return _driverOn; }
 
-    /** Convertit une Action en chaîne lisible. */
+    /**
+     * Convertit une valeur Action en chaîne de caractères lisible.
+     * @param  a  Action à convertir.
+     * @return    Pointeur vers une chaîne littérale constante.
+     */
     static const char* actionToString(Action a);
 
 private:

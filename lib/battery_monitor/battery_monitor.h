@@ -5,8 +5,9 @@
  * ----------------------------------------------------------
  *  Description :
  *    Classe BatteryMonitor — lecture ADC avec moyenne sur 16
- *    échantillons, conversion en tension via pont diviseur,
- *    calcul du pourcentage avec clamping.
+ *    échantillons, conversion en tension via pont diviseur
+ *    (R1 = R2 = 56 kΩ), calcul du pourcentage avec clamping
+ *    entre BATTERY_VMIN et BATTERY_VMAX.
  ************************************************************/
 
 #ifndef BATTERY_MONITOR_H
@@ -20,16 +21,24 @@ class BatteryMonitor {
 public:
     BatteryMonitor();
 
-    /** Configure l'ADC. À appeler dans setup(). */
+    /**
+     * Configure la broche ADC et la résolution (12 bits, 11 dB).
+     * À appeler une seule fois dans setup().
+     */
     void begin();
 
     /**
-     * Lit la tension et met à jour le pourcentage interne.
-     * À appeler périodiquement (ex. toutes les BATTERY_READ_INTERVAL ms).
+     * Effectue 16 lectures ADC, calcule la tension batterie via le
+     * pont diviseur et met à jour le pourcentage interne.
+     * À appeler périodiquement depuis loop() (ex. toutes les
+     * BATTERY_READ_INTERVAL ms). Non thread-safe.
      */
     void update();
 
-    /** Retourne le dernier pourcentage calculé (0-100). */
+    /**
+     * Retourne le dernier pourcentage calculé par update().
+     * @return  Pourcentage batterie clampé entre 0 et 100.
+     */
     int getPercent() const { return _percent; }
 
 private:

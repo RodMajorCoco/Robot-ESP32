@@ -8,6 +8,12 @@
  *    Point d'entrée. Instancie les quatre sous-systèmes,
  *    gère le boot (WiFi normal ou portail AP), puis délègue
  *    à chaque objet dans loop().
+ * 
+ * ----------------------------------------------------------
+ *  Historique des versions :
+ *    1.0 — version initiale
+ *    2.0 — refactoring orienté objet, séparation en classes
+ *          dédiées, amélioration de la structure et de la lisibilité.
  ************************************************************/
 
 #include <Arduino.h>
