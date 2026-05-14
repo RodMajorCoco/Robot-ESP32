@@ -37,8 +37,16 @@ public:
      */
     void update(const String& line1, const String& line2, int batteryPct);
 
-    /** Active ou désactive physiquement l'écran. */
-    void toggle(bool state);
+    /**
+     * Marque l'écran comme actif/inactif (état seul, sans I2C).
+     * Appelable depuis n'importe quelle tâche.
+     * La commande DISPLAYON/DISPLAYOFF est envoyée par applyPower()
+     * depuis loop() (main task).
+     */
+    void toggle(bool state) { _isOn = state; }
+
+    /** Envoie la commande DISPLAYON/DISPLAYOFF via I2C. À appeler depuis loop(). */
+    void applyPower(bool on);
 
     bool isOn() const { return _isOn; }
 

@@ -26,20 +26,17 @@ void MotorController::begin() {
 
     _mutex = xSemaphoreCreateMutex();
     _lastCommandTime = millis();
+    applyMotorLogic(Action::STOP);
 }
 
 // ---------------------------------------------------------------------------
 void MotorController::setAction(Action action) {
-    Action toApply = Action::STOP;
-
     if (xSemaphoreTake(_mutex, portMAX_DELAY)) {
         _currentAction   = action;
         _lastCommandTime = millis();
-        toApply          = _currentAction;
         xSemaphoreGive(_mutex);
     }
-
-    applyMotorLogic(toApply);
+    // applyMotorLogic est appelé uniquement depuis loop() (main task)
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +110,7 @@ void MotorController::toggleDriver(bool state) {
             _lastCommandTime = millis();
             xSemaphoreGive(_mutex);
         }
-        applyMotorLogic(Action::STOP);
+        // applyMotorLogic(STOP) sera appelé depuis loop() lors du prochain tick
     }
 }
 

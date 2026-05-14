@@ -66,6 +66,8 @@ private:
     String _password;
     volatile bool _apMode;
     unsigned long _apStartTime;
+    volatile bool _pendingRestart;
+    unsigned long _pendingRestartTime;
 
     bool _authenticate(AsyncWebServerRequest* request);
 };

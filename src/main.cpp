@@ -87,11 +87,42 @@ void loop() {
     Action current = motors.getCurrentAction();
     if (current != Action::STOP &&
         (millis() - motors.getLastCommandTime() > MAX_PERIOD_WITHOUT_COMMAND)) {
-
         motors.setAction(Action::STOP);
-        oled.update("ROBOT S3 READY",
-                    MotorController::actionToString(Action::STOP),
-                    battery.getPercent());
+        current = Action::STOP;
+    }
+
+    bool driverOn = motors.isDriverEnabled();
+
+    // --- Application de la logique moteur depuis la main task uniquement ---
+    // Les callbacks web font uniquement setAction() (état), pas d'analogWrite.
+    static Action lastApplied       = Action::STOP;
+    static bool   lastDriverApplied = true;
+
+    if (current != lastApplied || driverOn != lastDriverApplied) {
+        motors.applyMotorLogic(current);
+        lastApplied       = current;
+        lastDriverApplied = driverOn;
+    }
+
+    // --- Mise à jour de l'écran uniquement ici (jamais depuis les callbacks web) ---
+    static Action lastDisplayedAction = Action::STOP;
+    static bool   lastDisplayedDriver = true;
+    static bool   lastDisplayOn       = true;
+    bool displayOn = oled.isOn();
+
+    if (current != lastDisplayedAction || driverOn != lastDisplayedDriver || displayOn != lastDisplayOn) {
+        if (displayOn != lastDisplayOn) {
+            oled.applyPower(displayOn);  // DISPLAYON / DISPLAYOFF via I2C depuis main task
+        }
+        if (displayOn) {
+            const char* state = driverOn
+                ? MotorController::actionToString(current)
+                : "DRIVER OFF";
+            oled.update("ROBOT S3 READY", state, battery.getPercent());
+        }
+        lastDisplayedAction = current;
+        lastDisplayedDriver = driverOn;
+        lastDisplayOn       = displayOn;
     }
 
     // --- Mise à jour batterie (toutes les BATTERY_READ_INTERVAL ms) ---

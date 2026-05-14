@@ -20,6 +20,8 @@ RobotServer::RobotServer(MotorController& motors,
     , _wifi(wifi)
     , _apMode(false)
     , _apStartTime(0)
+    , _pendingRestart(false)
+    , _pendingRestartTime(0)
 {}
 
 // ---------------------------------------------------------------------------
@@ -54,9 +56,6 @@ void RobotServer::beginNormal(const String& username, const String& password) {
             Serial.printf("[CMD] %s\n", label);
 #endif
             _motors.setAction(action);
-            _display.update("ROBOT S3 READY",
-                            MotorController::actionToString(action),
-                            _battery.getPercent());
             request->send(200);
         };
     };
@@ -74,9 +73,6 @@ void RobotServer::beginNormal(const String& username, const String& password) {
         Serial.println("[CMD] display on");
 #endif
         _display.toggle(true);
-        _display.update("ROBOT S3 READY",
-                        MotorController::actionToString(_motors.getCurrentAction()),
-                        _battery.getPercent());
         request->send(200);
     });
 
@@ -96,7 +92,6 @@ void RobotServer::beginNormal(const String& username, const String& password) {
         Serial.println("[CMD] driver on");
 #endif
         _motors.toggleDriver(true);
-        _display.update("ROBOT S3 READY", "DRIVER ON", _battery.getPercent());
         request->send(200);
     });
 
@@ -106,7 +101,6 @@ void RobotServer::beginNormal(const String& username, const String& password) {
         Serial.println("[CMD] driver off");
 #endif
         _motors.toggleDriver(false);
-        _display.update("ROBOT S3 READY", "DRIVER OFF", _battery.getPercent());
         request->send(200);
     });
 
@@ -129,7 +123,7 @@ void RobotServer::beginAP() {
     WiFi.mode(WIFI_AP_STA);
     WiFi.softAP(AP_SSID);
 
-    _display.update("CONFIG MODE", AP_SSID, 0);
+    _display.update(WiFi.softAPIP().toString(), "AP MODE", 0);
 
 #if DEBUG_MODE
     Serial.println("[AP] Portail de configuration démarré");
@@ -175,15 +169,15 @@ void RobotServer::beginAP() {
         _wifi.saveCredentials(ssid.c_str(), pass.c_str());
         _wifi.saveAuthCredentials(webuser.c_str(), webpass.c_str());
 
-        request->send(200);
-        _display.update("SAUVEGARDE", "Redemarrage...", 0);
-
 #if DEBUG_MODE
-        Serial.println("[AP] Credentials sauvegardés — reboot");
+        Serial.println("[AP] Credentials sauvegardés — reboot dans 1s");
 #endif
 
-        delay(1500);
-        ESP.restart();
+        request->send(200);
+        // Le reboot est différé dans handleAPTimeout() pour laisser
+        // la tâche réseau transmettre la réponse HTTP avant de redémarrer.
+        _pendingRestart     = true;
+        _pendingRestartTime = millis();
     });
 
     _server.begin();
@@ -195,12 +189,23 @@ void RobotServer::beginAP() {
 void RobotServer::handleAPTimeout() {
     if (!_apMode) return;
 
+    // Reboot différé après sauvegarde des credentials
+    if (_pendingRestart && millis() - _pendingRestartTime > 800) {
+#if DEBUG_MODE
+        Serial.println("[AP] Reboot après sauvegarde");
+#endif
+        _display.update("SAUVEGARDE", "Redemarrage...", 0);
+        delay(500);
+        ESP.restart();
+    }
+
+    // Timeout du mode AP
     if (millis() - _apStartTime > AP_CONFIG_TIMEOUT) {
 #if DEBUG_MODE
         Serial.println("[AP] Timeout — reboot");
 #endif
         _display.update("AP TIMEOUT", "Reboot...", 0);
-        delay(1000);
+        delay(500);
         ESP.restart();
     }
 }

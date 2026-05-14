@@ -19,10 +19,12 @@ bool WifiManager::connect() {
     String pass = prefs.getString("password", "");
     prefs.end();
 
-    if (ssid.isEmpty() || pass.isEmpty()) {
-#if DEBUG_MODE
-        Serial.println("[WIFI] Credentials absents");
-#endif
+    if (ssid.isEmpty() || pass.isEmpty()) { // Pas de credentials stockés
+
+        #if DEBUG_MODE
+            Serial.println("[WIFI] Credentials absents");
+        #endif
+
         return false;
     }
 
@@ -32,22 +34,27 @@ bool WifiManager::connect() {
     while (WiFi.status() != WL_CONNECTED && attempts < MAX_WIFI_RETRIES) {
         delay(500);
         attempts++;
-#if DEBUG_MODE
-        Serial.printf("[WIFI] Tentative %d/%d\n", attempts, MAX_WIFI_RETRIES);
-#endif
+
+        #if DEBUG_MODE
+            Serial.printf("[WIFI] Tentative %d/%d\n", attempts, MAX_WIFI_RETRIES);
+        #endif
+
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-#if DEBUG_MODE
-        Serial.print("[WIFI] Connecté — IP : ");
-        Serial.println(WiFi.localIP());
-#endif
+
+        #if DEBUG_MODE
+                Serial.print("[WIFI] Connecté — IP : ");
+                Serial.println(WiFi.localIP());
+        #endif
+
         return true;
     }
 
-#if DEBUG_MODE
-    Serial.println("[WIFI] Connexion échouée");
-#endif
+    #if DEBUG_MODE
+        Serial.println("[WIFI] Connexion échouée");
+    #endif
+
     return false;
 }
 
@@ -60,9 +67,9 @@ void WifiManager::handleReconnect() {
 
     _lastReconnectAttempt = now;
 
-#if DEBUG_MODE
-    Serial.println("[WIFI] Perdu — tentative de reconnexion");
-#endif
+    #if DEBUG_MODE
+        Serial.println("[WIFI] Perdu — tentative de reconnexion");
+    #endif
 
     WiFi.reconnect();
 }
