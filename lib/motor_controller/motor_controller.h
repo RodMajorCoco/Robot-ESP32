@@ -8,8 +8,9 @@
  *    via DRV8833, avec mutex FreeRTOS sur l'état partagé.
  *
  *    Séparation stricte des responsabilités :
- *      • setAction() / toggleDriver() → mise à jour d'état
- *        uniquement, appelables depuis n'importe quelle tâche.
+ *      • setAction() / toggleDriver() / setVitesse*() → mise à
+ *        jour d'état uniquement, appelables depuis n'importe
+ *        quelle tâche (thread-safe).
  *      • applyMotorLogic() → écriture PWM (LEDC), à appeler
  *        exclusivement depuis loop() sur le core 1.
  ************************************************************/
@@ -87,6 +88,35 @@ public:
     bool isDriverEnabled() const { return _driverOn; }
 
     /**
+     * Règle la vitesse de croisière (avancer / reculer).
+     * Thread-safe (écriture atomique 32 bits). Positionne le flag
+     * interne pour que loop() ré-applique le PWM immédiatement.
+     * @param v  Valeur PWM clampée entre 0 et 255.
+     */
+    void setVitesseCroisiere(int v);
+
+    /**
+     * Règle la vitesse de rotation (gauche / droite).
+     * Thread-safe (écriture atomique 32 bits). Positionne le flag
+     * interne pour que loop() ré-applique le PWM immédiatement.
+     * @param v  Valeur PWM clampée entre 0 et 255.
+     */
+    void setVitesseRotation(int v);
+
+    /** Retourne la vitesse de croisière courante (PWM 0-255). */
+    int getVitesseCroisiere() const { return _vitesseCroisiere; }
+
+    /** Retourne la vitesse de rotation courante (PWM 0-255). */
+    int getVitesseRotation()  const { return _vitesseRotation;  }
+
+    /**
+     * Retourne true si une vitesse a changé depuis le dernier appel,
+     * et remet le flag à false. Appelé depuis loop() pour déclencher
+     * un ré-applique PWM sans attendre la prochaine commande.
+     */
+    bool consumeSpeedChanged();
+
+    /**
      * Convertit une valeur Action en chaîne de caractères lisible.
      * @param  a  Action à convertir.
      * @return    Pointeur vers une chaîne littérale constante.
@@ -98,6 +128,9 @@ private:
     Action              _currentAction;
     unsigned long       _lastCommandTime;
     SemaphoreHandle_t   _mutex;
+    volatile int        _vitesseCroisiere;
+    volatile int        _vitesseRotation;
+    volatile bool       _speedChanged;
 };
 
 #endif // MOTOR_CONTROLLER_H

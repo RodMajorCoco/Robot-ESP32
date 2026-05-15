@@ -104,7 +104,8 @@ void loop() {
     static Action lastApplied       = Action::STOP;
     static bool   lastDriverApplied = true;
 
-    if (current != lastApplied || driverOn != lastDriverApplied) {
+    bool speedChanged = motors.consumeSpeedChanged();
+    if (current != lastApplied || driverOn != lastDriverApplied || speedChanged) {
         motors.applyMotorLogic(current);
         lastApplied       = current;
         lastDriverApplied = driverOn;

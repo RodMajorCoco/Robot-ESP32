@@ -5,7 +5,7 @@
  * ----------------------------------------------------------
  *  Description :
  *    Interface web embarquée (HTML/CSS/JS) de la télécommande.
- *    Stockée en mémoire programme (PROGMEM). Inchangée.
+ *    Stockée en mémoire programme (PROGMEM).
  ************************************************************/
 
 #ifndef WEB_INTERFACE_H
@@ -42,11 +42,14 @@ const char index_html[] PROGMEM = R"rawliteral(
         .battery-bar-bg::after { content: ''; position: absolute; right: -5px; top: 3px; width: 3px; height: 6px; background: #fff; border-radius: 0 2px 2px 0; }
         .battery-bar-fill { height: 100%; border-radius: 1px; transition: width 0.5s, background 0.5s; }
         .battery-text { min-width: 34px; text-align: right; }
-        .controls { height: 50vh; padding: 10px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+        .controls {
+            height: 50vh; padding: 10px; box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 8px;
+        }
         .layout {
-            display: grid; width: 100%; height: 100%;
+            display: grid; width: 100%; flex: 1;
             grid-template-areas: "drv up scr" "left stop right" ". down .";
-            grid-template-columns: 1fr 1.2fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 15px;
+            grid-template-columns: 1fr 1.2fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 12px;
         }
         .btn { background: #2a2a2a; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 40px; cursor: pointer; border: 1px solid #444; transition: all 0.1s; }
         .btn.is-active { background: #00ffcc !important; color: #000 !important; box-shadow: 0 0 25px #00ffcc; border-color: #fff; }
@@ -56,6 +59,21 @@ const char index_html[] PROGMEM = R"rawliteral(
         .btn-screen { grid-area: scr; background: #333; font-size: 14px; color: #00ffcc; border: 1px dashed #00ffcc; border-radius: 20px; text-align: center; line-height: 1.1; flex-direction: column; }
         .btn-driver { grid-area: drv; background: #333; font-size: 14px; color: #00ff88; border: 1px dashed #00ff88; border-radius: 20px; text-align: center; line-height: 1.1; flex-direction: column; }
         .btn-driver.driver-off { color: #ff4444; border-color: #ff4444; }
+        .sliders-zone {
+            display: flex; gap: 12px; padding: 0 2px 2px;
+        }
+        .slider-group {
+            flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+        }
+        .slider-group .slabel {
+            font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .slider-group input[type=range] {
+            width: 100%; accent-color: #00ffcc; cursor: pointer; margin: 0;
+        }
+        .slider-group .sval {
+            font-size: 12px; color: #00ffcc; font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +93,20 @@ const char index_html[] PROGMEM = R"rawliteral(
             <div class="btn btn-stop"   data-dir="stop">STOP</div>
             <div class="btn btn-right"  data-dir="right">►</div>
             <div class="btn btn-down"   data-dir="backward">▼</div>
+        </div>
+        <div class="sliders-zone">
+            <div class="slider-group">
+                <span class="slabel">Croisière</span>
+                <input type="range" min="135" max="255" step="5" value="200"
+                       oninput="setSpdVal('vCru',this.value);sendSpeed('cruise',this.value)">
+                <span class="sval" id="vCru">200</span>
+            </div>
+            <div class="slider-group">
+                <span class="slabel">Rotation</span>
+                <input type="range" min="135" max="255" step="5" value="180"
+                       oninput="setSpdVal('vRot',this.value);sendSpeed('rotation',this.value)">
+                <span class="sval" id="vRot">180</span>
+            </div>
         </div>
     </div>
     <script>
@@ -121,6 +153,13 @@ const char index_html[] PROGMEM = R"rawliteral(
         }
         fetchBattery();
         setInterval(fetchBattery, 30000);
+
+        const speedTimers = {};
+        function sendSpeed(type, value) {
+            clearTimeout(speedTimers[type]);
+            speedTimers[type] = setTimeout(() => fetch('/speed/' + type + '?value=' + value), 200);
+        }
+        function setSpdVal(id, v) { document.getElementById(id).textContent = v; }
 
         document.querySelectorAll('.btn').forEach(button => {
             if (button.id === 'scrBtn' || button.id === 'drvBtn') return;

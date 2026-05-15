@@ -104,6 +104,23 @@ void RobotServer::beginNormal(const String& username, const String& password) {
         request->send(200);
     });
 
+    // Vitesses moteur
+    _server.on("/speed/cruise", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (!_authenticate(request)) return;
+        if (request->hasParam("value")) {
+            _motors.setVitesseCroisiere(request->getParam("value")->value().toInt());
+        }
+        request->send(200);
+    });
+
+    _server.on("/speed/rotation", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (!_authenticate(request)) return;
+        if (request->hasParam("value")) {
+            _motors.setVitesseRotation(request->getParam("value")->value().toInt());
+        }
+        request->send(200);
+    });
+
     // Batterie
     _server.on("/battery", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (!_authenticate(request)) return;

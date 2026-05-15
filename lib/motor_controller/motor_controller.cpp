@@ -12,6 +12,9 @@ MotorController::MotorController()
     , _currentAction(Action::STOP)
     , _lastCommandTime(0)
     , _mutex(nullptr)
+    , _vitesseCroisiere(VITESSE_CROISIERE)
+    , _vitesseRotation(VITESSE_ROTATION)
+    , _speedChanged(false)
 {}
 
 // ---------------------------------------------------------------------------
@@ -53,31 +56,31 @@ void MotorController::applyMotorLogic(Action action) {
 
     switch (action) {
         case Action::AVANCER:
-            analogWrite(MOTEUR_A_IN1, VITESSE_CROISIERE);
+            analogWrite(MOTEUR_A_IN1, _vitesseCroisiere);
             analogWrite(MOTEUR_A_IN2, 0);
-            analogWrite(MOTEUR_B_IN1, VITESSE_CROISIERE);
+            analogWrite(MOTEUR_B_IN1, _vitesseCroisiere);
             analogWrite(MOTEUR_B_IN2, 0);
             break;
 
         case Action::RECULER:
             analogWrite(MOTEUR_A_IN1, 0);
-            analogWrite(MOTEUR_A_IN2, VITESSE_CROISIERE);
+            analogWrite(MOTEUR_A_IN2, _vitesseCroisiere);
             analogWrite(MOTEUR_B_IN1, 0);
-            analogWrite(MOTEUR_B_IN2, VITESSE_CROISIERE);
+            analogWrite(MOTEUR_B_IN2, _vitesseCroisiere);
             break;
 
         case Action::ROTATION_G:
             analogWrite(MOTEUR_A_IN1, 0);
-            analogWrite(MOTEUR_A_IN2, VITESSE_ROTATION);
-            analogWrite(MOTEUR_B_IN1, VITESSE_ROTATION);
+            analogWrite(MOTEUR_A_IN2, _vitesseRotation);
+            analogWrite(MOTEUR_B_IN1, _vitesseRotation);
             analogWrite(MOTEUR_B_IN2, 0);
             break;
 
         case Action::ROTATION_D:
-            analogWrite(MOTEUR_A_IN1, VITESSE_ROTATION);
+            analogWrite(MOTEUR_A_IN1, _vitesseRotation);
             analogWrite(MOTEUR_A_IN2, 0);
             analogWrite(MOTEUR_B_IN1, 0);
-            analogWrite(MOTEUR_B_IN2, VITESSE_ROTATION);
+            analogWrite(MOTEUR_B_IN2, _vitesseRotation);
             break;
 
         case Action::STOP:
@@ -112,6 +115,25 @@ void MotorController::toggleDriver(bool state) {
         }
         // applyMotorLogic(STOP) sera appelé depuis loop() lors du prochain tick
     }
+}
+
+// ---------------------------------------------------------------------------
+void MotorController::setVitesseCroisiere(int v) {
+    _vitesseCroisiere = constrain(v, 0, 255);
+    _speedChanged = true;
+}
+
+// ---------------------------------------------------------------------------
+void MotorController::setVitesseRotation(int v) {
+    _vitesseRotation = constrain(v, 0, 255);
+    _speedChanged = true;
+}
+
+// ---------------------------------------------------------------------------
+bool MotorController::consumeSpeedChanged() {
+    if (!_speedChanged) return false;
+    _speedChanged = false;
+    return true;
 }
 
 // ---------------------------------------------------------------------------
