@@ -84,10 +84,21 @@ void loop() {
     }
 
     // --- Watchdog WiFi ---
-    if (!wifi.isConnected()) {
-        oled.update("ERREUR WIFI", "reconnexion...", battery.getPercent());
+    // Throttlé à 1 s pour ne pas saturer l'I2C (oled.update ≈ 23 ms).
+    static bool          prevWifiOk   = true;
+    static unsigned long lastWifiMsg  = 0;
+    bool wifiOk = wifi.isConnected();
+
+    if (!wifiOk) {
+        if (millis() - lastWifiMsg > 1000) {
+            oled.update("ERREUR WIFI", "reconnexion...", battery.getPercent());
+            lastWifiMsg = millis();
+        }
         wifi.handleReconnect();
     }
+    // Quand le WiFi se reconnecte, forcer un rafraîchissement de l'écran.
+    bool justReconnected = wifiOk && !prevWifiOk;
+    prevWifiOk = wifiOk;
 
     // --- Watchdog de sécurité (arrêt si pas de commande depuis > 5 s) ---
     Action current = motors.getCurrentAction();
@@ -117,7 +128,7 @@ void loop() {
     static bool   lastDisplayOn       = true;
     bool displayOn = oled.isOn();
 
-    if (current != lastDisplayedAction || driverOn != lastDisplayedDriver || displayOn != lastDisplayOn) {
+    if (justReconnected || current != lastDisplayedAction || driverOn != lastDisplayedDriver || displayOn != lastDisplayOn) {
         if (displayOn != lastDisplayOn) {
             oled.applyPower(displayOn);  // DISPLAYON / DISPLAYOFF via I2C depuis main task
         }

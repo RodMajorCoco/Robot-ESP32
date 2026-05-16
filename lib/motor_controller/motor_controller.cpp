@@ -12,8 +12,8 @@ MotorController::MotorController()
     , _currentAction(Action::STOP)
     , _lastCommandTime(0)
     , _mutex(nullptr)
-    , _vitesseCroisiere(VITESSE_CROISIERE)
-    , _vitesseRotation(VITESSE_ROTATION)
+    , _vitesseCroisiere(constrain(VITESSE_CROISIERE, 0, 255))
+    , _vitesseRotation(constrain(VITESSE_ROTATION,  0, 255))
     , _speedChanged(false)
 {}
 
